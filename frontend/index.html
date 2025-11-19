@@ -1,0 +1,635 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+    <title>Kitchen Compass AI</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #FEECEB 0%, #fcb69f 100%);
+            min-height: 100vh;
+            overflow-y: scroll;
+            zoom: 1;
+            -webkit-text-size-adjust: 100%;
+            -moz-text-size-adjust: 100%;
+            -ms-text-size-adjust: 100%;
+        }
+        
+        * {
+            box-sizing: border-box;
+        }
+        
+        html {
+            overflow-x: hidden;
+        }
+        .page-container {
+            min-height: 100vh;
+            padding-bottom: 150px;
+            width: 100%;
+            max-width: 100vw;
+        }
+        
+        .flex.gap-4 {
+            width: 100%;
+            max-width: 100%;
+        }
+        .chat-container {
+            max-height: 280px;
+            overflow-y: auto;
+        }
+        .message {
+            animation: fadeIn 0.3s ease-in;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .suggested-btn {
+            transition: all 0.3s ease;
+        }
+        .suggested-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+        .loading-dots::after {
+            content: '...';
+            animation: dots 1.5s steps(4, end) infinite;
+        }
+        @keyframes dots {
+            0%, 20% { content: '.'; }
+            40% { content: '..'; }
+            60%, 100% { content: '...'; }
+        }
+        .food-decoration {
+            position: absolute;
+            opacity: 0.7;
+            z-index: 0;
+            pointer-events: none;
+        }
+        .input-section {
+            margin-bottom: 2rem;
+        }
+
+        /* Toggle Sidebar Styles */
+        .sidebar {
+            transition: transform 0.3s ease-in-out;
+            z-index: 1000;
+        }
+        
+        .sidebar.closed {
+            transform: translateX(-100%);
+        }
+        
+        .sidebar-overlay {
+            transition: opacity 0.3s ease-in-out;
+            z-index: 999;
+        }
+        
+        .sidebar-overlay.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+        
+        .hamburger-btn {
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            background-color: white;
+            color: #F95039;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        
+        .hamburger-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+        }
+        
+        @media (min-width: 1024px) {
+            .sidebar {
+                position: sticky;
+                top: 1.5rem;
+            }
+            
+            .sidebar.closed {
+                position: fixed;
+                left: 0;
+            }
+            
+            #mainContent.sidebar-closed {
+                margin-left: 0;
+                padding-left: 70px;
+            }
+        }
+        
+        @media (max-width: 1023px) {
+            .sidebar {
+                position: fixed;
+                top: 0;
+                left: 0;
+                height: 100vh;
+                overflow-y: auto;
+            }
+        }
+    </style>
+</head>
+<body class="p-6 relative overflow-hidden">
+    
+    <!-- Hamburger Menu Button -->
+    <button 
+        id="hamburgerBtn" 
+        class="hamburger-btn fixed top-6 left-6 z-[1001] p-3 rounded-lg font-bold text-xl lg:block"
+        aria-label="Toggle sidebar"
+    >
+        ☰
+    </button>
+
+    <!-- Sidebar Overlay (for mobile/tablet) -->
+    <div 
+        id="sidebarOverlay" 
+        class="sidebar-overlay fixed inset-0 bg-black bg-opacity-50 lg:hidden"
+    ></div>
+
+    <div class="food-decoration top-10 left-10 w-24 sm:w-32 transform -rotate-12">
+        <img src="https://raw.githubusercontent.com/nmemranhussain/Kichen_compass_ai/main/1.jpg" alt="Food" class="rounded-full shadow-lg">
+    </div>
+    <div class="food-decoration top-20 left-1/4 w-28 sm:w-40 transform -rotate-6">
+        <img src="https://raw.githubusercontent.com/nmemranhussain/Kichen_compass_ai/main/2.jpg" alt="Food" class="rounded-full shadow-lg">
+    </div>
+    <div class="food-decoration bottom-40 left-10 w-28 sm:w-40 transform rotate-12">
+        <img src="https://raw.githubusercontent.com/nmemranhussain/Kichen_compass_ai/main/3.jpg" alt="Food" class="rounded-full shadow-lg">
+    </div>
+    <div class="food-decoration bottom-40 right-10 w-28 sm:w-40 transform -rotate-12">
+        <img src="https://raw.githubusercontent.com/nmemranhussain/Kichen_compass_ai/main/5.jpg" alt="Food" class="rounded-full shadow-lg">
+    </div>
+    <div class="food-decoration top-20 right-20 w-28 sm:w-40 transform rotate-6">
+        <img src="https://raw.githubusercontent.com/nmemranhussain/Kichen_compass_ai/main/6.jpg" alt="Food" class="rounded-full shadow-lg">
+    </div>
+
+    <div class="page-container">
+        <div id="mainContent" class="flex gap-4 relative z-10 max-w-7xl mx-auto transition-all duration-300">
+            
+            <!-- Toggle Sidebar -->
+            <aside id="sidebar" class="sidebar w-72 bg-white rounded-3xl shadow-2xl p-5 h-fit">
+                <!-- Close Button (visible on mobile/tablet) -->
+                <button 
+                    id="closeSidebarBtn" 
+                    class="lg:hidden absolute top-4 right-4 text-gray-500 hover:text-gray-700 text-2xl font-bold"
+                    aria-label="Close sidebar"
+                >
+                    ×
+                </button>
+
+                <div class="mb-5 mt-2 lg:mt-0 pt-12 lg:pt-0">
+                    <h2 class="text-lg font-bold mb-3 flex items-center gap-2" style="color: #F95039;">
+                        📊 Quick Stats
+                    </h2>
+                    <div class="space-y-2">
+                        <div class="bg-orange-50 p-3 rounded-lg">
+                            <p class="text-xs text-gray-600 mb-1">Documents</p>
+                            <p id="sidebarDocs" class="text-2xl font-bold" style="color: #F95039;">0</p>
+                        </div>
+                        <div class="bg-blue-50 p-3 rounded-lg">
+                            <p class="text-xs text-gray-600 mb-1">Questions Asked</p>
+                            <p id="sidebarQuestions" class="text-2xl font-bold text-blue-600">0</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mb-5">
+                    <h2 class="text-lg font-bold mb-3 flex items-center gap-2" style="color: #F95039;">
+                        🎯 Popular Topics
+                    </h2>
+                    <div class="space-y-2">
+                        <button class="topic-btn w-full text-left px-3 py-2.5 rounded-lg transition text-xs font-medium bg-purple-50 hover:bg-purple-100">
+                            📋 Permits & Licenses
+                        </button>
+                        <button class="topic-btn w-full text-left px-3 py-2.5 rounded-lg transition text-xs font-medium bg-green-50 hover:bg-green-100">
+                            🏥 Health Inspections
+                        </button>
+                        <button class="topic-btn w-full text-left px-3 py-2.5 rounded-lg transition text-xs font-medium bg-yellow-50 hover:bg-yellow-100">
+                            📍 Location Analysis
+                        </button>
+                        <button class="topic-btn w-full text-left px-3 py-2.5 rounded-lg transition text-xs font-medium bg-red-50 hover:bg-red-100">
+                            ⚠️ Common Violations
+                        </button>
+                    </div>
+                </div>
+
+                <div class="mb-5">
+                    <h2 class="text-lg font-bold mb-3 flex items-center gap-2" style="color: #F95039;">
+                        🔗 Quick Links
+                    </h2>
+                    <div class="space-y-1.5 text-xs text-center">
+                        <a href="https://www1.nyc.gov/nycbusiness/description/food-service-establishment-permit" target="_blank" class="block text-blue-600 hover:underline">NYC Food Permits</a>
+                        <a href="https://www1.nyc.gov/site/doh/index.page" target="_blank" class="block text-blue-600 hover:underline">NYC Health Dept</a>
+                        <a href="https://www1.nyc.gov/site/sbs/index.page" target="_blank" class="block text-blue-600 hover:underline">Small Business Services</a>
+                    </div>
+                </div>
+
+                <button id="clearHistory" class="w-full bg-red-50 hover:bg-red-100 text-red-600 px-3 py-2.5 rounded-lg text-xs font-medium transition">
+                    🗑️ Clear Chat History
+                </button>
+            </aside>
+
+            <div class="flex-1 min-w-0">
+                <div class="text-center mb-4">
+                    <h1 class="text-4xl sm:text-5xl font-bold mb-2" style="color: #F95039;">KITCHEN COMPASS AI</h1>
+                    <p class="text-sm sm:text-lg text-gray-700">The secret to creating a successful restaurant in NYC</p>
+                </div>
+
+                <div class="bg-white rounded-3xl shadow-2xl p-5 mb-3">
+                    <div class="flex items-center justify-between mb-4 flex-wrap gap-2">
+                        <div class="flex items-center gap-2">
+                            <div class="w-2.5 h-2.5 rounded-full animate-pulse" style="background-color: #F95039;"></div>
+                            <span class="text-sm font-medium text-gray-700">Kitchen Compass AI</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <select id="modelSelector" class="px-2.5 py-1.5 border-2 border-gray-300 rounded-lg text-xs font-medium focus:outline-none cursor-pointer" style="border-color: #F95039;">
+                                <option value="gpt-4o-mini" selected>🤖 GPT-4o-mini</option>
+                                <option value="ollama">🦙 Ollama (Gemma 2B)</option>
+                            </select>
+                            <button id="showAnalytics" class="text-sm font-medium hover:opacity-80" style="color: #F95039;">
+                                📊 Analytics
+                            </button>
+                        </div>
+                    </div>
+
+                    <div id="chatContainer" class="chat-container mb-3 space-y-2.5">
+                        <div class="flex justify-start">
+                            <div class="bg-gray-100 p-3 rounded-xl max-w-2xl">
+                                <p class="text-sm ai-message">
+                                    <strong>Hi! I'm your NYC restaurant setup copilot.</strong><br><br>
+                                    I can help you with:<br>
+                                    • Required permits and licenses<br>
+                                    • Health inspection checklists<br>
+                                    • Neighborhood risk analysis<br>
+                                    • NYC food safety regulations<br><br>
+                                    Try the suggested questions below or ask your own!
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="suggestedQuestions" class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        <button class="suggested-btn bg-orange-100 hover:bg-orange-200 text-orange-700 px-3 py-2 rounded-lg text-xs font-medium">
+                            What permits are needed?
+                        </button>
+                        <button class="suggested-btn bg-orange-100 hover:bg-orange-200 text-orange-700 px-3 py-2 rounded-lg text-xs font-medium">
+                            Inspection checklists?
+                        </button>
+                        <button class="suggested-btn bg-orange-100 hover:bg-orange-200 text-orange-700 px-3 py-2 rounded-lg text-xs font-medium">
+                            Which borough has lowest inspection risk?
+                        </button>
+                        <button class="suggested-btn bg-orange-100 hover:bg-orange-200 text-orange-700 px-3 py-2 rounded-lg text-xs font-medium">
+                            Most common violations?
+                        </button>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-3xl shadow-2xl p-4 mb-3 input-section">
+                    <div class="flex gap-2">
+                        <input 
+                            type="text" 
+                            id="userInput" 
+                            placeholder="Ask: Where should I open a café with the lowest inspection risk?"
+                            class="flex-1 px-3 py-2.5 border-2 border-gray-300 rounded-lg focus:outline-none text-sm"
+                            style="border-color: #F95039;"
+                        />
+                        <button 
+                            id="sendBtn"
+                            class="text-white px-5 py-2.5 rounded-lg font-medium transition-colors text-sm flex-shrink-0"
+                            style="background-color: #F95039;"
+                            onmouseover="this.style.opacity='0.9'"
+                            onmouseout="this.style.opacity='1'"
+                        >
+                            ▶
+                        </button>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-3xl shadow-2xl p-4 mb-3 input-section">
+                    <div class="flex flex-col sm:flex-row items-start sm:items-center gap-2">
+                        <label class="text-xs sm:text-sm font-medium text-gray-700">Upload NYC Data (CSV):</label>
+                        <input 
+                            type="file" 
+                            id="csvFile" 
+                            accept=".csv"
+                            class="text-xs file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:bg-orange-100 file:text-orange-700 hover:file:bg-orange-200 file:cursor-pointer"
+                        />
+                        <button 
+                            id="uploadBtn"
+                            class="bg-green-500 hover:bg-green-600 text-white px-3 py-1.5 rounded-lg text-xs font-medium transition-colors w-full sm:w-auto"
+                        >
+                            Upload & Ingest
+                        </button>
+                    </div>
+                    <p id="uploadStatus" class="text-xs text-gray-600 mt-1.5"></p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="analyticsModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-2xl p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl font-bold text-gray-800">📊 System Analytics</h2>
+                <button id="closeAnalytics" class="text-gray-500 hover:text-gray-700 text-3xl">&times;</button>
+            </div>
+            <div id="analyticsContent" class="space-y-3 text-sm">
+                <p class="text-gray-600">Loading analytics...</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Sidebar Toggle Functionality
+        const sidebar = document.getElementById('sidebar');
+        const hamburgerBtn = document.getElementById('hamburgerBtn');
+        const closeSidebarBtn = document.getElementById('closeSidebarBtn');
+        const sidebarOverlay = document.getElementById('sidebarOverlay');
+        const mainContent = document.getElementById('mainContent');
+
+        // Load sidebar state from localStorage
+        function loadSidebarState() {
+            const isDesktop = window.innerWidth >= 1024;
+            const savedState = localStorage.getItem('sidebarOpen');
+            
+            if (isDesktop) {
+                // On desktop, default to open unless explicitly closed
+                const shouldBeOpen = savedState !== 'false';
+                if (shouldBeOpen) {
+                    sidebar.classList.remove('closed');
+                    mainContent.classList.remove('sidebar-closed');
+                    sidebarOverlay.classList.add('hidden');
+                } else {
+                    sidebar.classList.add('closed');
+                    mainContent.classList.add('sidebar-closed');
+                    sidebarOverlay.classList.add('hidden');
+                }
+            } else {
+                // On mobile/tablet, default to closed
+                sidebar.classList.add('closed');
+                mainContent.classList.remove('sidebar-closed');
+                sidebarOverlay.classList.add('hidden');
+            }
+        }
+
+        function toggleSidebar() {
+            const isOpen = !sidebar.classList.contains('closed');
+            const isDesktop = window.innerWidth >= 1024;
+            
+            if (isOpen) {
+                sidebar.classList.add('closed');
+                if (isDesktop) {
+                    mainContent.classList.add('sidebar-closed');
+                }
+                if (!isDesktop) {
+                    sidebarOverlay.classList.add('hidden');
+                }
+                localStorage.setItem('sidebarOpen', 'false');
+            } else {
+                sidebar.classList.remove('closed');
+                if (isDesktop) {
+                    mainContent.classList.remove('sidebar-closed');
+                }
+                if (!isDesktop) {
+                    sidebarOverlay.classList.remove('hidden');
+                }
+                localStorage.setItem('sidebarOpen', 'true');
+            }
+        }
+
+        hamburgerBtn.addEventListener('click', toggleSidebar);
+        closeSidebarBtn.addEventListener('click', toggleSidebar);
+        sidebarOverlay.addEventListener('click', toggleSidebar);
+
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            loadSidebarState();
+        });
+
+        // Initialize sidebar state on load
+        loadSidebarState();
+
+        // Original JavaScript
+        const chatContainer = document.getElementById('chatContainer');
+        const userInput = document.getElementById('userInput');
+        const sendBtn = document.getElementById('sendBtn');
+        const modelSelector = document.getElementById('modelSelector');
+        const suggestedBtns = document.querySelectorAll('.suggested-btn');
+        const uploadBtn = document.getElementById('uploadBtn');
+        const csvFile = document.getElementById('csvFile');
+        const uploadStatus = document.getElementById('uploadStatus');
+        const showAnalyticsBtn = document.getElementById('showAnalytics');
+        const analyticsModal = document.getElementById('analyticsModal');
+        const closeAnalyticsBtn = document.getElementById('closeAnalytics');
+        const analyticsContent = document.getElementById('analyticsContent');
+        const clearHistoryBtn = document.getElementById('clearHistory');
+        const topicBtns = document.querySelectorAll('.topic-btn');
+
+        let questionCount = 0;
+
+        topicBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                const topic = btn.textContent.trim().substring(2);
+                userInput.value = `Tell me about ${topic}`;
+                sendMessage();
+                
+                // Close sidebar on mobile after clicking topic
+                if (window.innerWidth < 1024) {
+                    toggleSidebar();
+                }
+            });
+        });
+
+        clearHistoryBtn.addEventListener('click', () => {
+            if (confirm('Are you sure you want to clear the chat history?')) {
+                const messages = chatContainer.querySelectorAll('.message');
+                messages.forEach(msg => msg.remove());
+                questionCount = 0;
+                updateSidebarStats();
+            }
+        });
+
+        function updateSidebarStats() {
+            document.getElementById('sidebarQuestions').textContent = questionCount;
+        }
+
+        suggestedBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                const question = btn.textContent.trim();
+                userInput.value = question;
+                sendMessage();
+            });
+        });
+
+        sendBtn.addEventListener('click', sendMessage);
+        userInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') sendMessage();
+        });
+
+        async function sendMessage() {
+            const message = userInput.value.trim();
+            if (!message) return;
+
+            questionCount++;
+            updateSidebarStats();
+
+            const selectedModel = modelSelector.value;
+            const modelName = selectedModel === 'gpt-4o-mini' ? 'GPT-4o-mini' : 'Gemma 2B';
+
+            displayMessage(message, 'user');
+            userInput.value = '';
+
+            const loadingId = displayMessage(`Thinking (${modelName})<span class="loading-dots"></span>`, 'bot', true);
+
+            try {
+                const response = await fetch('/api/generate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        prompt: message,
+                        model: selectedModel 
+                    })
+                });
+
+                const data = await response.json();
+                document.getElementById(loadingId)?.remove();
+
+                if (data.ok) {
+                    displayMessage(data.output, 'bot');
+                } else {
+                    displayMessage('Sorry, something went wrong. Please try again.', 'bot');
+                }
+            } catch (error) {
+                document.getElementById(loadingId)?.remove();
+                displayMessage('Error connecting to server. Please try again.', 'bot');
+                console.error('Error:', error);
+            }
+        }
+
+        function displayMessage(text, sender, isLoading = false) {
+            const messageDiv = document.createElement('div');
+            const id = 'msg-' + Date.now();
+            messageDiv.id = id;
+            messageDiv.className = `flex ${sender === 'user' ? 'justify-end' : 'justify-start'} message`;
+
+            const bubble = document.createElement('div');
+            bubble.className = `${sender === 'user' ? 'text-white' : 'bg-gray-100 text-gray-800'} p-3 rounded-xl max-w-2xl text-sm`;
+            if (sender === 'user') {
+                bubble.style.backgroundColor = '#F95039';
+            }
+            
+            if (sender === 'bot' && !isLoading) {
+                text = formatBotResponse(text);
+            }
+            
+            bubble.innerHTML = text;
+            messageDiv.appendChild(bubble);
+            chatContainer.appendChild(messageDiv);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+
+            return id;
+        }
+
+        function formatBotResponse(text) {
+            text = text.replace(/\*\*(.+?)\*\*/g, '<strong style="color: #F95039;">$1</strong>');
+            text = text.replace(/^[\-\•\*]\s+(.+)$/gm, '<div style="margin-left: 1em; margin-bottom: 0.5em;">• $1</div>');
+            text = text.replace(/^(.+?:)$/gm, '<div style="font-weight: 600; color: #F95039; margin-top: 1em; margin-bottom: 0.5em;">$1</div>');
+            text = text.replace(/\n\n/g, '<br><br>');
+            text = text.replace(/\n/g, '<br>');
+            return text;
+        }
+
+        uploadBtn.addEventListener('click', async () => {
+            const file = csvFile.files[0];
+            if (!file) {
+                uploadStatus.textContent = '⚠️ Please select a CSV file first.';
+                uploadStatus.className = 'text-xs text-red-600 mt-1.5';
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            uploadStatus.textContent = '⏳ Uploading and processing...';
+            uploadStatus.className = 'text-xs text-blue-600 mt-1.5';
+
+            try {
+                const response = await fetch('/api/ingest_csv', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                if (data.ok) {
+                    uploadStatus.textContent = `✅ Success! Ingested ${data.rows_ingested || 0} rows. Vector store has ${data.total_chunks || 0} chunks.`;
+                    uploadStatus.className = 'text-xs text-green-600 mt-1.5';
+                    document.getElementById('sidebarDocs').textContent = data.total_chunks || 0;
+                } else {
+                    uploadStatus.textContent = '❌ Upload failed. Please try again.';
+                    uploadStatus.className = 'text-xs text-red-600 mt-1.5';
+                }
+            } catch (error) {
+                uploadStatus.textContent = '❌ Error uploading file.';
+                uploadStatus.className = 'text-xs text-red-600 mt-1.5';
+                console.error('Upload error:', error);
+            }
+        });
+
+        showAnalyticsBtn.addEventListener('click', async () => {
+            analyticsModal.classList.remove('hidden');
+            analyticsContent.innerHTML = '<p class="text-gray-600">Loading analytics...</p>';
+
+            try {
+                const response = await fetch('/api/stats');
+                const data = await response.json();
+
+                if (data.ok) {
+                    const currentModel = modelSelector.options[modelSelector.selectedIndex].text;
+                    analyticsContent.innerHTML = `
+                        <div class="bg-blue-50 p-3 rounded-lg">
+                            <p class="font-semibold text-blue-900">Total Chunks in Vector Store:</p>
+                            <p class="text-xl font-bold text-blue-600">${data.total_chunks || 0}</p>
+                        </div>
+                        <div class="bg-purple-50 p-3 rounded-lg">
+                            <p class="font-semibold text-purple-900">Current Model:</p>
+                            <p class="text-purple-600">${currentModel}</p>
+                        </div>
+                        <div class="bg-orange-50 p-3 rounded-lg">
+                            <p class="font-semibold text-orange-900">Questions Asked:</p>
+                            <p class="text-orange-600">${questionCount}</p>
+                        </div>
+                        <div class="bg-green-50 p-3 rounded-lg">
+                            <p class="font-semibold text-green-900">Status:</p>
+                            <p class="text-green-600">${data.total_chunks > 0 ? '✅ System ready with data' : '⚠️ No data ingested yet'}</p>
+                        </div>
+                        <div class="bg-gray-50 p-3 rounded-lg">
+                            <p class="text-gray-700"><strong>Tip:</strong> Upload NYC restaurant inspection data to get better insights!</p>
+                        </div>
+                    `;
+                    document.getElementById('sidebarDocs').textContent = data.total_chunks || 0;
+                } else {
+                    analyticsContent.innerHTML = '<p class="text-red-600">Failed to load analytics.</p>';
+                }
+            } catch (error) {
+                analyticsContent.innerHTML = '<p class="text-red-600">Error loading analytics.</p>';
+                console.error('Analytics error:', error);
+            }
+        });
+
+        closeAnalyticsBtn.addEventListener('click', () => {
+            analyticsModal.classList.add('hidden');
+        });
+
+        analyticsModal.addEventListener('click', (e) => {
+            if (e.target === analyticsModal) {
+                analyticsModal.classList.add('hidden');
+            }
+        });
+
+        updateSidebarStats();
+    </script>
+</body>
+</html>

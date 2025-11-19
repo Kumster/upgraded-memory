@@ -1,0 +1,10 @@
+fastapi==0.95.2
+uvicorn[standard]==0.23.2
+requests==2.31.0
+# Use a numpy compatible with Python 3.8
+numpy==1.24.4
+# Needed by orchestrator.ingest_csv
+pandas==1.5.3
+# Optional heavy deps for higher-quality embeddings / vector DBs:
+# sentence-transformers>=2.2.2
+# faiss-cpu
