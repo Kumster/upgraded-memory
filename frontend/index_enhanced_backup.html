@@ -760,15 +760,7 @@
                 updateSidebarStats();
 
                 if (data.ok) {
-                    // Extract the text from the response
-                    let responseText = data.output;
-                    
-                    // If output is an object, try to extract the text
-                    if (typeof responseText === 'object' && responseText !== null) {
-                        responseText = responseText.text || responseText.content || JSON.stringify(responseText);
-                    }
-                    
-                    displayMessage(responseText, 'bot');
+                    displayMessage(data.output, 'bot');
                     showToast(`Response generated in ${executionTime.toFixed(1)}s`, 'success');
                 } else {
                     displayMessage('Sorry, something went wrong. Please try again.', 'bot');
@@ -890,11 +882,6 @@
 
         // ========== Format Bot Response ==========
         function formatBotResponse(text) {
-            // Ensure text is a string
-            if (typeof text !== 'string') {
-                text = String(text);
-            }
-            
             // Bold text
             text = text.replace(/\*\*(.+?)\*\*/g, '<strong style="color: #F95039;">$1</strong>');
             

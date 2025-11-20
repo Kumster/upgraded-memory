@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
-    <title>Kitchen Compass AI - Multi-Agent System</title>
+    <title>Kitchen Compass AI</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body {
@@ -36,9 +36,8 @@
             max-width: 100%;
         }
         .chat-container {
-            max-height: 400px;
+            max-height: 280px;
             overflow-y: auto;
-            scroll-behavior: smooth;
         }
         .message {
             animation: fadeIn 0.3s ease-in;
@@ -71,146 +70,6 @@
         }
         .input-section {
             margin-bottom: 2rem;
-        }
-
-        /* Toast Notifications */
-        .toast {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            min-width: 300px;
-            padding: 16px;
-            border-radius: 12px;
-            color: white;
-            font-weight: 500;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-            z-index: 10000;
-            animation: slideIn 0.3s ease-out;
-        }
-        @keyframes slideIn {
-            from { opacity: 0; transform: translateX(400px); }
-            to { opacity: 1; transform: translateX(0); }
-        }
-        .toast.success { background-color: #10b981; }
-        .toast.error { background-color: #ef4444; }
-        .toast.info { background-color: #3b82f6; }
-        .toast.warning { background-color: #f59e0b; }
-
-        /* Agent Status Indicators */
-        .agent-indicator {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            padding: 6px 12px;
-            border-radius: 20px;
-            font-size: 11px;
-            font-weight: 600;
-            margin: 4px;
-            animation: pulse 2s ease-in-out infinite;
-        }
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.7; }
-        }
-        .agent-indicator.active {
-            background-color: #dcfce7;
-            color: #16a34a;
-        }
-        .agent-indicator.waiting {
-            background-color: #fef3c7;
-            color: #d97706;
-        }
-        .agent-indicator.complete {
-            background-color: #dbeafe;
-            color: #2563eb;
-        }
-
-        /* Message Bubble Enhancement */
-        .message-bubble {
-            position: relative;
-        }
-        .message-bubble:hover .copy-btn {
-            opacity: 1;
-        }
-
-        /* Copy Button */
-        .copy-btn {
-            position: absolute;
-            top: 8px;
-            right: 8px;
-            padding: 6px 12px;
-            background-color: #f3f4f6;
-            border-radius: 6px;
-            font-size: 11px;
-            cursor: pointer;
-            transition: all 0.2s;
-            opacity: 0;
-        }
-        .copy-btn:hover {
-            background-color: #e5e7eb;
-        }
-
-        /* Code Block Styling */
-        pre {
-            background-color: #1e293b;
-            color: #e2e8f0;
-            border-radius: 8px;
-            padding: 16px;
-            overflow-x: auto;
-            margin: 12px 0;
-        }
-        code {
-            font-family: 'Courier New', monospace;
-            font-size: 13px;
-        }
-
-        /* Table Styling */
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin: 12px 0;
-        }
-        table th {
-            background-color: #f95039;
-            color: white;
-            padding: 10px;
-            text-align: left;
-            font-weight: 600;
-        }
-        table td {
-            padding: 10px;
-            border-bottom: 1px solid #e5e7eb;
-        }
-        table tr:hover {
-            background-color: #f9fafb;
-        }
-
-        /* Typing Indicator */
-        .typing-indicator span {
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            background-color: #9ca3af;
-            animation: typing 1.4s infinite;
-        }
-        .typing-indicator span:nth-child(2) {
-            animation-delay: 0.2s;
-        }
-        .typing-indicator span:nth-child(3) {
-            animation-delay: 0.4s;
-        }
-        @keyframes typing {
-            0%, 60%, 100% { transform: translateY(0); }
-            30% { transform: translateY(-10px); }
-        }
-
-        /* Agent Flow */
-        .agent-flow {
-            background-color: #fef3c7;
-            border-left: 4px solid #f59e0b;
-            padding: 12px;
-            margin: 12px 0;
-            border-radius: 4px;
         }
 
         /* Toggle Sidebar Styles */
@@ -309,7 +168,7 @@
     <div class="page-container">
         <div id="mainContent" class="flex gap-4 relative z-10 max-w-7xl mx-auto transition-all duration-300">
             
-            <!-- Enhanced Sidebar with Agent Status -->
+            <!-- Toggle Sidebar -->
             <aside id="sidebar" class="sidebar w-72 bg-white rounded-3xl shadow-2xl p-5 h-fit">
                 <!-- Close Button (visible on mobile/tablet) -->
                 <button 
@@ -333,20 +192,6 @@
                             <p class="text-xs text-gray-600 mb-1">Questions Asked</p>
                             <p id="sidebarQuestions" class="text-2xl font-bold text-blue-600">0</p>
                         </div>
-                        <div class="bg-green-50 p-3 rounded-lg">
-                            <p class="text-xs text-gray-600 mb-1">Avg Response Time</p>
-                            <p id="sidebarAvgTime" class="text-2xl font-bold text-green-600">0s</p>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Agent Status Section -->
-                <div class="mb-5">
-                    <h2 class="text-lg font-bold mb-3 flex items-center gap-2" style="color: #F95039;">
-                        🤖 AI Agents
-                    </h2>
-                    <div id="agentStatusList" class="space-y-2 text-xs">
-                        <!-- Dynamically populated -->
                     </div>
                 </div>
 
@@ -389,35 +234,23 @@
             <div class="flex-1 min-w-0">
                 <div class="text-center mb-4">
                     <h1 class="text-4xl sm:text-5xl font-bold mb-2" style="color: #F95039;">KITCHEN COMPASS AI</h1>
-                    <p class="text-sm sm:text-lg text-gray-700">Multi-Agent AI System for NYC Restaurant Entrepreneurs</p>
+                    <p class="text-sm sm:text-lg text-gray-700">The secret to creating a successful restaurant in NYC</p>
                 </div>
 
                 <div class="bg-white rounded-3xl shadow-2xl p-5 mb-3">
                     <div class="flex items-center justify-between mb-4 flex-wrap gap-2">
                         <div class="flex items-center gap-2">
                             <div class="w-2.5 h-2.5 rounded-full animate-pulse" style="background-color: #F95039;"></div>
-                            <span class="text-sm font-medium text-gray-700">Kitchen Compass AI v2.0</span>
+                            <span class="text-sm font-medium text-gray-700">Kitchen Compass AI</span>
                         </div>
                         <div class="flex items-center gap-2">
                             <select id="modelSelector" class="px-2.5 py-1.5 border-2 border-gray-300 rounded-lg text-xs font-medium focus:outline-none cursor-pointer" style="border-color: #F95039;">
                                 <option value="gpt-4o-mini" selected>🤖 GPT-4o-mini</option>
-                                <option value="ollama">🦙 Ollama</option>
+                                <option value="ollama">🦙 Ollama (Gemma 2B)</option>
                             </select>
-                            <label class="flex items-center gap-1 text-xs cursor-pointer">
-                                <input type="checkbox" id="streamToggle" class="cursor-pointer">
-                                <span>Stream</span>
-                            </label>
                             <button id="showAnalytics" class="text-sm font-medium hover:opacity-80" style="color: #F95039;">
                                 📊 Analytics
                             </button>
-                        </div>
-                    </div>
-
-                    <!-- Agent Execution Flow -->
-                    <div id="agentFlow" class="hidden mb-3">
-                        <div class="agent-flow">
-                            <p class="text-xs font-semibold mb-2" style="color: #f59e0b;">🔄 Agent Execution Flow:</p>
-                            <div id="agentIndicators" class="flex flex-wrap"></div>
                         </div>
                     </div>
 
@@ -425,15 +258,13 @@
                         <div class="flex justify-start">
                             <div class="bg-gray-100 p-3 rounded-xl max-w-2xl">
                                 <p class="text-sm ai-message">
-                                    <strong>Hi! I'm your NYC restaurant setup copilot powered by multiple specialized AI agents.</strong><br><br>
-                                    <strong>Available Agents:</strong><br>
-                                    🧭 <strong>Intent Router</strong> - Directs your query to the right specialists<br>
-                                    📊 <strong>Complaint Analyzer</strong> - Analyzes NYC 311 complaint patterns<br>
-                                    ✅ <strong>Compliance Guide</strong> - Health code & permit guidance<br>
-                                    📍 <strong>Location Risk</strong> - Neighborhood risk assessment<br>
-                                    💡 <strong>Strategic Advisor</strong> - Business strategy insights<br>
-                                    🛡️ <strong>Violation Prevention</strong> - Proactive violation prevention<br><br>
-                                    Ask anything about starting or running a restaurant in NYC!
+                                    <strong>Hi! I'm your NYC restaurant setup copilot.</strong><br><br>
+                                    I can help you with:<br>
+                                    • Required permits and licenses<br>
+                                    • Health inspection checklists<br>
+                                    • Neighborhood risk analysis<br>
+                                    • NYC food safety regulations<br><br>
+                                    Try the suggested questions below or ask your own!
                                 </p>
                             </div>
                         </div>
@@ -441,16 +272,16 @@
 
                     <div id="suggestedQuestions" class="grid grid-cols-1 sm:grid-cols-2 gap-2">
                         <button class="suggested-btn bg-orange-100 hover:bg-orange-200 text-orange-700 px-3 py-2 rounded-lg text-xs font-medium">
-                            What permits do I need to open a restaurant?
+                            What permits are needed?
                         </button>
                         <button class="suggested-btn bg-orange-100 hover:bg-orange-200 text-orange-700 px-3 py-2 rounded-lg text-xs font-medium">
-                            Which neighborhood has the lowest inspection risk?
+                            Inspection checklists?
                         </button>
                         <button class="suggested-btn bg-orange-100 hover:bg-orange-200 text-orange-700 px-3 py-2 rounded-lg text-xs font-medium">
-                            What are the most common health violations?
+                            Which borough has lowest inspection risk?
                         </button>
                         <button class="suggested-btn bg-orange-100 hover:bg-orange-200 text-orange-700 px-3 py-2 rounded-lg text-xs font-medium">
-                            How can I prevent critical violations?
+                            Most common violations?
                         </button>
                     </div>
                 </div>
@@ -460,7 +291,7 @@
                         <input 
                             type="text" 
                             id="userInput" 
-                            placeholder="Ask about permits, inspections, locations, violations, or business strategy..."
+                            placeholder="Ask: Where should I open a café with the lowest inspection risk?"
                             class="flex-1 px-3 py-2.5 border-2 border-gray-300 rounded-lg focus:outline-none text-sm"
                             style="border-color: #F95039;"
                         />
@@ -498,11 +329,10 @@
         </div>
     </div>
 
-    <!-- Enhanced Analytics Modal -->
     <div id="analyticsModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-        <div class="bg-white rounded-2xl p-6 max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+        <div class="bg-white rounded-2xl p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
             <div class="flex justify-between items-center mb-4">
-                <h2 class="text-xl font-bold text-gray-800">📊 System Analytics & Agent Performance</h2>
+                <h2 class="text-xl font-bold text-gray-800">📊 System Analytics</h2>
                 <button id="closeAnalytics" class="text-gray-500 hover:text-gray-700 text-3xl">&times;</button>
             </div>
             <div id="analyticsContent" class="space-y-3 text-sm">
@@ -512,41 +342,20 @@
     </div>
 
     <script>
-        // ========== Global Variables ==========
-        const chatContainer = document.getElementById('chatContainer');
-        const userInput = document.getElementById('userInput');
-        const sendBtn = document.getElementById('sendBtn');
-        const modelSelector = document.getElementById('modelSelector');
-        const streamToggle = document.getElementById('streamToggle');
-        const suggestedBtns = document.querySelectorAll('.suggested-btn');
-        const uploadBtn = document.getElementById('uploadBtn');
-        const csvFile = document.getElementById('csvFile');
-        const uploadStatus = document.getElementById('uploadStatus');
-        const showAnalyticsBtn = document.getElementById('showAnalytics');
-        const analyticsModal = document.getElementById('analyticsModal');
-        const closeAnalyticsBtn = document.getElementById('closeAnalytics');
-        const analyticsContent = document.getElementById('analyticsContent');
-        const clearHistoryBtn = document.getElementById('clearHistory');
-        const topicBtns = document.querySelectorAll('.topic-btn');
-        const agentFlow = document.getElementById('agentFlow');
-        const agentIndicators = document.getElementById('agentIndicators');
-        const agentStatusList = document.getElementById('agentStatusList');
-
-        let questionCount = 0;
-        let totalResponseTime = 0;
-
-        // ========== Sidebar Toggle Functionality ==========
+        // Sidebar Toggle Functionality
         const sidebar = document.getElementById('sidebar');
         const hamburgerBtn = document.getElementById('hamburgerBtn');
         const closeSidebarBtn = document.getElementById('closeSidebarBtn');
         const sidebarOverlay = document.getElementById('sidebarOverlay');
         const mainContent = document.getElementById('mainContent');
 
+        // Load sidebar state from localStorage
         function loadSidebarState() {
             const isDesktop = window.innerWidth >= 1024;
             const savedState = localStorage.getItem('sidebarOpen');
             
             if (isDesktop) {
+                // On desktop, default to open unless explicitly closed
                 const shouldBeOpen = savedState !== 'false';
                 if (shouldBeOpen) {
                     sidebar.classList.remove('closed');
@@ -558,6 +367,7 @@
                     sidebarOverlay.classList.add('hidden');
                 }
             } else {
+                // On mobile/tablet, default to closed
                 sidebar.classList.add('closed');
                 mainContent.classList.remove('sidebar-closed');
                 sidebarOverlay.classList.add('hidden');
@@ -593,108 +403,58 @@
         closeSidebarBtn.addEventListener('click', toggleSidebar);
         sidebarOverlay.addEventListener('click', toggleSidebar);
 
+        // Handle window resize
         window.addEventListener('resize', () => {
             loadSidebarState();
         });
 
+        // Initialize sidebar state on load
         loadSidebarState();
 
-        // ========== Toast Notification System ==========
-        function showToast(message, type = 'info') {
-            const toast = document.createElement('div');
-            toast.className = `toast ${type}`;
-            toast.textContent = message;
-            document.body.appendChild(toast);
+        // Original JavaScript
+        const chatContainer = document.getElementById('chatContainer');
+        const userInput = document.getElementById('userInput');
+        const sendBtn = document.getElementById('sendBtn');
+        const modelSelector = document.getElementById('modelSelector');
+        const suggestedBtns = document.querySelectorAll('.suggested-btn');
+        const uploadBtn = document.getElementById('uploadBtn');
+        const csvFile = document.getElementById('csvFile');
+        const uploadStatus = document.getElementById('uploadStatus');
+        const showAnalyticsBtn = document.getElementById('showAnalytics');
+        const analyticsModal = document.getElementById('analyticsModal');
+        const closeAnalyticsBtn = document.getElementById('closeAnalytics');
+        const analyticsContent = document.getElementById('analyticsContent');
+        const clearHistoryBtn = document.getElementById('clearHistory');
+        const topicBtns = document.querySelectorAll('.topic-btn');
 
-            setTimeout(() => {
-                toast.style.opacity = '0';
-                setTimeout(() => toast.remove(), 300);
-            }, 3000);
-        }
+        let questionCount = 0;
 
-        // ========== Agent Status Management ==========
-        async function loadAgentStatus() {
-            try {
-                const response = await fetch('/api/agents/status');
-                const data = await response.json();
-
-                if (data.ok && data.agents) {
-                    updateAgentStatusSidebar(data.agents);
-                }
-            } catch (error) {
-                console.error('Failed to load agent status:', error);
-            }
-        }
-
-        function updateAgentStatusSidebar(agents) {
-            agentStatusList.innerHTML = agents.map(agent => `
-                <div class="flex items-center justify-between p-2 bg-gray-50 rounded-lg">
-                    <div class="flex items-center gap-2">
-                        <div class="w-2 h-2 rounded-full ${agent.status === 'idle' ? 'bg-green-500' : 'bg-yellow-500'}"></div>
-                        <span class="font-medium">${agent.name}</span>
-                    </div>
-                    <span class="text-gray-600">${agent.usage_count || 0}</span>
-                </div>
-            `).join('');
-        }
-
-        function showAgentIndicator(agentName, status = 'active') {
-            const indicator = document.createElement('div');
-            indicator.className = `agent-indicator ${status}`;
-            indicator.id = `agent-${agentName}`;
-            indicator.innerHTML = `
-                <span>●</span>
-                <span>${agentName.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}</span>
-            `;
-            agentIndicators.appendChild(indicator);
-            agentFlow.classList.remove('hidden');
-        }
-
-        function updateAgentIndicator(agentName, status) {
-            const indicator = document.getElementById(`agent-${agentName}`);
-            if (indicator) {
-                indicator.className = `agent-indicator ${status}`;
-            }
-        }
-
-        function clearAgentIndicators() {
-            agentIndicators.innerHTML = '';
-            agentFlow.classList.add('hidden');
-        }
-
-        // ========== Stats Update ==========
-        function updateSidebarStats() {
-            document.getElementById('sidebarQuestions').textContent = questionCount;
-            const avgTime = questionCount > 0 ? (totalResponseTime / questionCount).toFixed(1) : 0;
-            document.getElementById('sidebarAvgTime').textContent = avgTime + 's';
-        }
-
-        // ========== Topic Buttons ==========
         topicBtns.forEach(btn => {
             btn.addEventListener('click', () => {
                 const topic = btn.textContent.trim().substring(2);
                 userInput.value = `Tell me about ${topic}`;
                 sendMessage();
                 
+                // Close sidebar on mobile after clicking topic
                 if (window.innerWidth < 1024) {
                     toggleSidebar();
                 }
             });
         });
 
-        // ========== Clear History ==========
         clearHistoryBtn.addEventListener('click', () => {
             if (confirm('Are you sure you want to clear the chat history?')) {
                 const messages = chatContainer.querySelectorAll('.message');
                 messages.forEach(msg => msg.remove());
                 questionCount = 0;
-                totalResponseTime = 0;
                 updateSidebarStats();
-                showToast('Chat history cleared', 'success');
             }
         });
 
-        // ========== Suggested Questions ==========
+        function updateSidebarStats() {
+            document.getElementById('sidebarQuestions').textContent = questionCount;
+        }
+
         suggestedBtns.forEach(btn => {
             btn.addEventListener('click', () => {
                 const question = btn.textContent.trim();
@@ -703,7 +463,6 @@
             });
         });
 
-        // ========== Send Message ==========
         sendBtn.addEventListener('click', sendMessage);
         userInput.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') sendMessage();
@@ -717,29 +476,12 @@
             updateSidebarStats();
 
             const selectedModel = modelSelector.value;
-            const modelName = selectedModel === 'gpt-4o-mini' ? 'GPT-4o-mini' : 'Ollama';
-            const useStreaming = streamToggle.checked;
+            const modelName = selectedModel === 'gpt-4o-mini' ? 'GPT-4o-mini' : 'Gemma 2B';
 
             displayMessage(message, 'user');
             userInput.value = '';
 
-            clearAgentIndicators();
-
-            if (useStreaming) {
-                await streamResponse(message, selectedModel);
-            } else {
-                await generateResponse(message, selectedModel, modelName);
-            }
-
-            // Refresh agent status
-            loadAgentStatus();
-        }
-
-        // ========== Non-Streaming Response ==========
-        async function generateResponse(message, model, modelName) {
-            const loadingId = displayMessage(`🤖 Thinking (${modelName})<span class="loading-dots"></span>`, 'bot', true);
-
-            const startTime = Date.now();
+            const loadingId = displayMessage(`Thinking (${modelName})<span class="loading-dots"></span>`, 'bot', true);
 
             try {
                 const response = await fetch('/api/generate', {
@@ -747,140 +489,42 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ 
                         prompt: message,
-                        model: model,
-                        stream: false
+                        model: selectedModel 
                     })
                 });
 
                 const data = await response.json();
                 document.getElementById(loadingId)?.remove();
 
-                const executionTime = (Date.now() - startTime) / 1000;
-                totalResponseTime += executionTime;
-                updateSidebarStats();
-
                 if (data.ok) {
-                    // Extract the text from the response
-                    let responseText = data.output;
-                    
-                    // If output is an object, try to extract the text
-                    if (typeof responseText === 'object' && responseText !== null) {
-                        responseText = responseText.text || responseText.content || JSON.stringify(responseText);
-                    }
-                    
-                    displayMessage(responseText, 'bot');
-                    showToast(`Response generated in ${executionTime.toFixed(1)}s`, 'success');
+                    displayMessage(data.output, 'bot');
                 } else {
                     displayMessage('Sorry, something went wrong. Please try again.', 'bot');
-                    showToast('Failed to generate response', 'error');
                 }
             } catch (error) {
                 document.getElementById(loadingId)?.remove();
                 displayMessage('Error connecting to server. Please try again.', 'bot');
-                showToast('Connection error', 'error');
                 console.error('Error:', error);
             }
         }
 
-        // ========== Streaming Response ==========
-        async function streamResponse(message, model) {
-            const messageId = displayMessage('', 'bot', false, true);
-            const messageBubble = document.getElementById(messageId).querySelector('.message-content');
-
-            showAgentIndicator('intent_router', 'active');
-
-            try {
-                const response = await fetch('/api/generate', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ 
-                        prompt: message,
-                        model: model,
-                        stream: true
-                    })
-                });
-
-                const reader = response.body.getReader();
-                const decoder = new TextDecoder();
-                let buffer = '';
-                let content = '';
-
-                while (true) {
-                    const { done, value } = await reader.read();
-                    if (done) break;
-
-                    buffer += decoder.decode(value, { stream: true });
-                    const lines = buffer.split('\n');
-                    buffer = lines.pop();
-
-                    for (const line of lines) {
-                        if (line.startsWith('data: ')) {
-                            try {
-                                const data = JSON.parse(line.slice(6));
-                                
-                                if (data.type === 'agent') {
-                                    if (data.status === 'active') {
-                                        showAgentIndicator(data.agent.toLowerCase().replace(/ /g, '_'), 'active');
-                                    } else if (data.status === 'complete') {
-                                        updateAgentIndicator(data.agent.toLowerCase().replace(/ /g, '_'), 'complete');
-                                    }
-                                } else if (data.type === 'content') {
-                                    content += data.content;
-                                    messageBubble.innerHTML = formatBotResponse(content);
-                                } else if (data.type === 'done') {
-                                    showToast('Response complete', 'success');
-                                } else if (data.type === 'error') {
-                                    showToast('Error: ' + data.error, 'error');
-                                }
-                            } catch (e) {
-                                console.error('Parse error:', e);
-                            }
-                        }
-                    }
-                }
-
-                chatContainer.scrollTop = chatContainer.scrollHeight;
-            } catch (error) {
-                showToast('Streaming error', 'error');
-                console.error('Streaming error:', error);
-            }
-        }
-
-        // ========== Display Message ==========
-        function displayMessage(text, sender, isLoading = false, isStreaming = false) {
+        function displayMessage(text, sender, isLoading = false) {
             const messageDiv = document.createElement('div');
             const id = 'msg-' + Date.now();
             messageDiv.id = id;
             messageDiv.className = `flex ${sender === 'user' ? 'justify-end' : 'justify-start'} message`;
 
             const bubble = document.createElement('div');
-            bubble.className = `message-bubble relative ${sender === 'user' ? 'text-white' : 'bg-gray-100 text-gray-800'} p-3 rounded-xl max-w-2xl text-sm`;
+            bubble.className = `${sender === 'user' ? 'text-white' : 'bg-gray-100 text-gray-800'} p-3 rounded-xl max-w-2xl text-sm`;
             if (sender === 'user') {
                 bubble.style.backgroundColor = '#F95039';
             }
             
-            if (sender === 'bot' && !isLoading && !isStreaming) {
+            if (sender === 'bot' && !isLoading) {
                 text = formatBotResponse(text);
-                
-                // Add copy button
-                const copyBtn = document.createElement('button');
-                copyBtn.className = 'copy-btn';
-                copyBtn.textContent = '📋 Copy';
-                copyBtn.onclick = () => {
-                    const tempDiv = document.createElement('div');
-                    tempDiv.innerHTML = text;
-                    navigator.clipboard.writeText(tempDiv.textContent);
-                    copyBtn.textContent = '✅ Copied!';
-                    setTimeout(() => copyBtn.textContent = '📋 Copy', 2000);
-                };
-                bubble.appendChild(copyBtn);
             }
             
-            const content = document.createElement('div');
-            content.className = 'message-content';
-            content.innerHTML = text;
-            bubble.appendChild(content);
-            
+            bubble.innerHTML = text;
             messageDiv.appendChild(bubble);
             chatContainer.appendChild(messageDiv);
             chatContainer.scrollTop = chatContainer.scrollHeight;
@@ -888,38 +532,18 @@
             return id;
         }
 
-        // ========== Format Bot Response ==========
         function formatBotResponse(text) {
-            // Ensure text is a string
-            if (typeof text !== 'string') {
-                text = String(text);
-            }
-            
-            // Bold text
             text = text.replace(/\*\*(.+?)\*\*/g, '<strong style="color: #F95039;">$1</strong>');
-            
-            // Bullet points
             text = text.replace(/^[\-\•\*]\s+(.+)$/gm, '<div style="margin-left: 1em; margin-bottom: 0.5em;">• $1</div>');
-            
-            // Headers
-            text = text.replace(/^###\s+(.+)$/gm, '<h3 style="font-weight: 600; color: #F95039; margin-top: 1em; margin-bottom: 0.5em; font-size: 1.1em;">$1</h3>');
-            text = text.replace(/^##\s+(.+)$/gm, '<h2 style="font-weight: 600; color: #F95039; margin-top: 1em; margin-bottom: 0.5em; font-size: 1.2em;">$1</h2>');
-            
-            // Section headers (lines ending with :)
             text = text.replace(/^(.+?:)$/gm, '<div style="font-weight: 600; color: #F95039; margin-top: 1em; margin-bottom: 0.5em;">$1</div>');
-            
-            // Line breaks
             text = text.replace(/\n\n/g, '<br><br>');
             text = text.replace(/\n/g, '<br>');
-            
             return text;
         }
 
-        // ========== CSV Upload ==========
         uploadBtn.addEventListener('click', async () => {
             const file = csvFile.files[0];
             if (!file) {
-                showToast('Please select a CSV file first', 'warning');
                 uploadStatus.textContent = '⚠️ Please select a CSV file first.';
                 uploadStatus.className = 'text-xs text-red-600 mt-1.5';
                 return;
@@ -943,92 +567,49 @@
                     uploadStatus.textContent = `✅ Success! Ingested ${data.rows_ingested || 0} rows. Vector store has ${data.total_chunks || 0} chunks.`;
                     uploadStatus.className = 'text-xs text-green-600 mt-1.5';
                     document.getElementById('sidebarDocs').textContent = data.total_chunks || 0;
-                    showToast(`Successfully ingested ${data.rows_ingested} rows`, 'success');
                 } else {
                     uploadStatus.textContent = '❌ Upload failed. Please try again.';
                     uploadStatus.className = 'text-xs text-red-600 mt-1.5';
-                    showToast('Upload failed', 'error');
                 }
             } catch (error) {
                 uploadStatus.textContent = '❌ Error uploading file.';
                 uploadStatus.className = 'text-xs text-red-600 mt-1.5';
-                showToast('Upload error', 'error');
                 console.error('Upload error:', error);
             }
         });
 
-        // ========== Analytics Modal ==========
         showAnalyticsBtn.addEventListener('click', async () => {
             analyticsModal.classList.remove('hidden');
             analyticsContent.innerHTML = '<p class="text-gray-600">Loading analytics...</p>';
 
             try {
-                const response = await fetch('/api/analytics/overview');
+                const response = await fetch('/api/stats');
                 const data = await response.json();
 
                 if (data.ok) {
                     const currentModel = modelSelector.options[modelSelector.selectedIndex].text;
-                    
-                    let agentUsageHTML = '<div class="grid grid-cols-2 gap-2">';
-                    if (data.overview.agent_usage && Object.keys(data.overview.agent_usage).length > 0) {
-                        for (const [agent, count] of Object.entries(data.overview.agent_usage)) {
-                            agentUsageHTML += `
-                                <div class="bg-purple-50 p-2 rounded-lg text-center">
-                                    <p class="text-xs text-purple-700 font-medium">${agent.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}</p>
-                                    <p class="text-lg font-bold text-purple-600">${count}</p>
-                                </div>
-                            `;
-                        }
-                    } else {
-                        agentUsageHTML += '<p class="col-span-2 text-gray-600 text-center">No agent usage data yet</p>';
-                    }
-                    agentUsageHTML += '</div>';
-
                     analyticsContent.innerHTML = `
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-                            <div class="bg-blue-50 p-3 rounded-lg">
-                                <p class="font-semibold text-blue-900">Total Chunks in Vector Store:</p>
-                                <p class="text-2xl font-bold text-blue-600">${data.overview.total_chunks || 0}</p>
-                            </div>
-                            <div class="bg-green-50 p-3 rounded-lg">
-                                <p class="font-semibold text-green-900">Total Queries Processed:</p>
-                                <p class="text-2xl font-bold text-green-600">${data.overview.total_queries || 0}</p>
-                            </div>
-                            <div class="bg-orange-50 p-3 rounded-lg">
-                                <p class="font-semibold text-orange-900">Avg Execution Time:</p>
-                                <p class="text-2xl font-bold text-orange-600">${data.overview.avg_execution_time || 0}s</p>
-                            </div>
-                            <div class="bg-purple-50 p-3 rounded-lg">
-                                <p class="font-semibold text-purple-900">Current Model:</p>
-                                <p class="text-purple-600">${currentModel}</p>
-                            </div>
+                        <div class="bg-blue-50 p-3 rounded-lg">
+                            <p class="font-semibold text-blue-900">Total Chunks in Vector Store:</p>
+                            <p class="text-xl font-bold text-blue-600">${data.total_chunks || 0}</p>
                         </div>
-                        
-                        <div class="bg-purple-50 p-4 rounded-lg">
-                            <p class="font-semibold text-purple-900 mb-3">Agent Usage Statistics:</p>
-                            ${agentUsageHTML}
+                        <div class="bg-purple-50 p-3 rounded-lg">
+                            <p class="font-semibold text-purple-900">Current Model:</p>
+                            <p class="text-purple-600">${currentModel}</p>
                         </div>
-
-                        <div class="bg-indigo-50 p-4 rounded-lg">
-                            <p class="font-semibold text-indigo-900 mb-2">Available Agents:</p>
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs">
-                                ${data.agents ? data.agents.map(agent => `
-                                    <div class="flex items-center gap-2 bg-white p-2 rounded">
-                                        <div class="w-2 h-2 rounded-full bg-green-500"></div>
-                                        <span class="font-medium">${agent.name}</span>
-                                        <span class="ml-auto text-gray-600">${agent.usage_count || 0} calls</span>
-                                    </div>
-                                `).join('') : '<p class="text-gray-600">No agent data available</p>'}
-                            </div>
+                        <div class="bg-orange-50 p-3 rounded-lg">
+                            <p class="font-semibold text-orange-900">Questions Asked:</p>
+                            <p class="text-orange-600">${questionCount}</p>
                         </div>
-
+                        <div class="bg-green-50 p-3 rounded-lg">
+                            <p class="font-semibold text-green-900">Status:</p>
+                            <p class="text-green-600">${data.total_chunks > 0 ? '✅ System ready with data' : '⚠️ No data ingested yet'}</p>
+                        </div>
                         <div class="bg-gray-50 p-3 rounded-lg">
-                            <p class="text-gray-700"><strong>System Status:</strong> ${data.overview.total_chunks > 0 ? '✅ Operational with data' : '⚠️ No data ingested yet'}</p>
-                            <p class="text-gray-700 mt-2"><strong>Tip:</strong> Upload NYC restaurant inspection data (CSV) to enhance insights!</p>
+                            <p class="text-gray-700"><strong>Tip:</strong> Upload NYC restaurant inspection data to get better insights!</p>
                         </div>
                     `;
-                    
-                    document.getElementById('sidebarDocs').textContent = data.overview.total_chunks || 0;
+                    document.getElementById('sidebarDocs').textContent = data.total_chunks || 0;
                 } else {
                     analyticsContent.innerHTML = '<p class="text-red-600">Failed to load analytics.</p>';
                 }
@@ -1048,12 +629,7 @@
             }
         });
 
-        // ========== Initialize ==========
         updateSidebarStats();
-        loadAgentStatus();
-
-        // Refresh agent status every 10 seconds
-        setInterval(loadAgentStatus, 10000);
     </script>
 </body>
 </html>

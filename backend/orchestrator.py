@@ -1,310 +1,247 @@
-import requests
-import pandas as pd
-from typing import Dict
+"""
+Enhanced Orchestrator for Kitchen Compass AI
+Supports multi-agent tracking, streaming responses, and detailed execution flow
+"""
+
 import os
+import time
+from typing import Dict, List, Optional, Any
 from openai import OpenAI
+from backend.vector_store import VectorStore
+from backend.agents.intent_router_agent import IntentRouterAgent
+from backend.agents.complaint_analyzer_agent import ComplaintAnalyzerAgent
+from backend.agents.compliance_guide_agent import ComplianceGuideAgent
+from backend.agents.location_risk_agent import LocationRiskAgent
+from backend.agents.strategic_advisor_agent import StrategicAdvisorAgent
+from backend.agents.violation_prevention_agent import ViolationPreventionAgent
 
 class Orchestrator:
     def __init__(self):
-        # Load environment variables from .env file
-        from dotenv import load_dotenv
-        load_dotenv()
+        self.openai_client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
+        self.vector_store = VectorStore(csv_path="data/erm2-nwe9.csv")
         
-        # Ollama configuration
-        self.ollama_base_url = "http://localhost:11434"
-        self.ollama_model_name = "gemma:2b"
+        # Initialize all agents
+        self.intent_router = IntentRouterAgent(self.openai_client)
+        self.complaint_analyzer = ComplaintAnalyzerAgent(self.openai_client, self.vector_store)
+        self.compliance_guide = ComplianceGuideAgent(self.openai_client, self.vector_store)
+        self.location_risk = LocationRiskAgent(self.openai_client, self.vector_store)
+        self.strategic_advisor = StrategicAdvisorAgent(self.openai_client, self.vector_store)
+        self.violation_prevention = ViolationPreventionAgent(self.openai_client, self.vector_store)
         
-        # OpenAI configuration
-        self.openai_api_key = os.getenv('OPENAI_API_KEY')
-        if not self.openai_api_key:
-            print("WARNING: OPENAI_API_KEY not found in environment!")
-        else:
-            print(f"✅ API Key loaded")
+        # Agent mapping
+        self.agents = {
+            'intent_router': self.intent_router,
+            'complaint_analyzer': self.complaint_analyzer,
+            'compliance_guide': self.compliance_guide,
+            'location_risk': self.location_risk,
+            'strategic_advisor': self.strategic_advisor,
+            'violation_prevention': self.violation_prevention
+        }
         
-        self.openai_model_name = "gpt-4o-mini"
-        
-        # Data storage
-        self.documents = []
-        self.response_cache = {}
-        
-        # ADD COMPLAINT ANALYZER AGENT (lazy import - only loads when __init__ runs)
-        self.complaint_agent = None
-        self._load_complaint_analyzer()
+        # Execution tracking
+        self.execution_history = []
+        self.agent_usage_count = {}
     
-    def _load_complaint_analyzer(self):
-        """Load complaint analyzer with lazy import to avoid import errors at startup"""
+    def generate_with_context(self, prompt: str, model: str = "gpt-4o-mini") -> str:
+        """
+        Generate response with context from vector store
+        Returns formatted response with agent tracking
+        """
         try:
-            # Install plotly if not available
-            try:
-                import plotly
-            except ImportError:
-                print("⚠️ Plotly not installed. Installing now...")
-                import subprocess
-                subprocess.check_call(['pip', 'install', 'plotly', '-q'])
-                print("✅ Plotly installed")
+            start_time = time.time()
             
-            # Direct import of complaint analyzer
-            import sys
-            agent_dir = os.path.join(os.path.dirname(__file__), 'agents')
-            if agent_dir not in sys.path:
-                sys.path.insert(0, agent_dir)
+            # Step 1: Route query to appropriate agents
+            routing_result = self.intent_router.route(prompt)
+            selected_agents = routing_result.get('agents', ['compliance_guide'])
+            execution_plan = routing_result.get('execution_plan', 'sequential')
             
-            from complaint_analyzer_agent import ComplaintAnalyzerAgent
+            # Track agent usage
+            for agent_name in selected_agents:
+                self.agent_usage_count[agent_name] = self.agent_usage_count.get(agent_name, 0) + 1
             
-            # Load the CSV data
-            csv_path = 'backend/data/erm2-nwe9.csv'
-            if os.path.exists(csv_path):
-                self.complaint_agent = ComplaintAnalyzerAgent(csv_path)
-                print(f"✅ Complaint Analyzer loaded: {len(self.complaint_agent.df)} records")
-            else:
-                print(f"⚠️ CSV not found at {csv_path}")
+            # Step 2: Retrieve relevant context from vector store
+            context_docs = self.vector_store.search(prompt, k=5)
+            context = "\n\n".join([doc.page_content for doc in context_docs])
+            
+            # Step 3: Execute agents based on routing plan
+            agent_responses = []
+            for agent_name in selected_agents:
+                agent = self.agents.get(agent_name)
+                if agent:
+                    try:
+                        response = agent.process(prompt, context)
+                        agent_responses.append({
+                            'agent': agent_name,
+                            'response': response,
+                            'status': 'success'
+                        })
+                    except Exception as e:
+                        agent_responses.append({
+                            'agent': agent_name,
+                            'response': f"Error: {str(e)}",
+                            'status': 'error'
+                        })
+            
+            # Step 4: Synthesize final response
+            final_response = self._synthesize_responses(prompt, agent_responses, context)
+            
+            # Step 5: Track execution
+            execution_time = time.time() - start_time
+            self.execution_history.append({
+                'prompt': prompt,
+                'agents_used': selected_agents,
+                'execution_time': execution_time,
+                'timestamp': time.time(),
+                'model': model
+            })
+            
+            return final_response
+            
         except Exception as e:
-            print(f"⚠️ Could not load Complaint Analyzer: {e}")
-            import traceback
-            traceback.print_exc()
-        
-    def generate_with_context(self, prompt: str, use_rag: bool = True, model: str = "gpt-4o-mini") -> str:
-        """
-        Generate response using either GPT-4o-mini or Ollama
-        """
-        cache_key = f"{prompt}_{use_rag}_{model}"
-        if cache_key in self.response_cache:
-            return self.response_cache[cache_key]
-        
-        # CHECK IF THIS IS A COMPLAINT-RELATED QUERY
-        if self.complaint_agent:
-            complaint_result = self._check_complaint_query(prompt)
-            if complaint_result:
-                self.response_cache[cache_key] = complaint_result
-                return complaint_result
-        
-        # Retrieve context if using RAG
-        context = ""
-        if use_rag and self.documents:
-            context = self._simple_retrieve(prompt)
-        
-        # Build the full prompt
-        full_prompt = self._build_prompt(prompt, context)
-        
-        # Generate response based on selected model
-        if model == "gpt-4o-mini":
-            response = self._call_openai_direct(prompt, context)
-        elif model == "ollama":
-            response = self._call_ollama(full_prompt)
-        else:
-            response = f"Error: Unknown model '{model}'. Use 'gpt-4o-mini' or 'ollama'."
-        
-        self.response_cache[cache_key] = response
-        return response
+            return f"Error processing request: {str(e)}"
     
-    def _check_complaint_query(self, prompt: str) -> str:
-        """Check if query is about complaints and route to complaint agent"""
-        if not self.complaint_agent:
-            return None
+    def _synthesize_responses(self, prompt: str, agent_responses: List[Dict], context: str) -> str:
+        """
+        Synthesize multiple agent responses into a coherent answer
+        """
+        if not agent_responses:
+            return "No agent responses available."
         
-        prompt_lower = prompt.lower()
+        # If only one agent, return its response directly
+        if len(agent_responses) == 1:
+            return agent_responses[0]['response']
         
-        # Keywords that indicate complaint-related queries
-        complaint_keywords = [
-            'complaint', 'noise', '311', 'violation', 'sanitation',
-            'zip code', 'zipcode', 'zip', 'borough', 'neighborhood',
-            'area', 'location risk', 'manhattan', 'brooklyn', 
-            'queens', 'bronx', 'staten island', 'where should i open'
-        ]
+        # Combine multiple agent responses
+        synthesis_prompt = f"""
+You are synthesizing insights from multiple specialized agents to answer this question:
+
+**User Question:** {prompt}
+
+**Agent Responses:**
+"""
+        for i, agent_resp in enumerate(agent_responses, 1):
+            agent_name = agent_resp['agent'].replace('_', ' ').title()
+            synthesis_prompt += f"\n{i}. **{agent_name}:**\n{agent_resp['response']}\n"
         
-        # Check if any keyword is in the prompt
-        if any(keyword in prompt_lower for keyword in complaint_keywords):
-            print(f"🎯 Routing to Complaint Analyzer...")
-            
-            # Use the complaint agent to answer
-            result = self.complaint_agent.answer_question(prompt)
-            
-            # Format the response nicely
-            response = f"📊 {result['answer']}\n\n"
-            
-            # Add data summary if available
-            if 'data' in result and isinstance(result['data'], dict):
-                response += "Key Data:\n"
-                for key, value in list(result['data'].items())[:5]:
-                    response += f"• {key}: {value}\n"
-            
-            # Add sources
-            if 'sources' in result:
-                response += f"\n📚 Source: {', '.join(result['sources'])}\n"
-            
-            return response
+        synthesis_prompt += """
+**Context from NYC Data:**
+""" + context[:1000] + """
+
+Please synthesize these responses into a comprehensive, well-structured answer. 
+Include relevant details from each agent's perspective, and cite specific data points when available.
+Format your response with clear sections using markdown.
+"""
         
-        return None
-    
-    def _call_openai_direct(self, prompt: str, context: str) -> str:
-        """Call OpenAI API DIRECTLY"""
         try:
-            from openai import OpenAI
-            client = OpenAI(api_key=self.openai_api_key)
-            
-            system_content = """You are Kitchen AI Compass, an expert assistant for NYC restaurant inspections and food safety regulations.
-
-FORMATTING GUIDELINES:
-- Use clear section headers with relevant emojis (🍽️, 🏥, 📋, 💡, ⚠️, etc.)
-- Group related information into organized sections
-- Use bullet points (•) for lists
-- Keep paragraphs short and scannable (2-3 sentences max)
-- Bold important terms using **text**
-- Highlight key warnings or notes
-- End with a helpful call-to-action or offer to help further
-- Make responses visually organized and easy to read
-
-Keep responses concise but comprehensive. Focus on actionable information."""
-
-            if context:
-                system_content += f"\n\nRelevant Information from your knowledge base:\n{context}"
-            
-            messages = [
-                {"role": "system", "content": system_content},
-                {"role": "user", "content": prompt}
-            ]
-            
-            print('--- CALLING OPENAI DIRECTLY ---')
-            print(f"Model: {self.openai_model_name}")
-            print(f"Prompt: {prompt[:100]}...")
-            
-            resp = client.chat.completions.create(
-                model=self.openai_model_name,
-                messages=messages,
-                temperature=0.7
+            response = self.openai_client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[
+                    {"role": "system", "content": "You are a helpful assistant that synthesizes information from multiple sources."},
+                    {"role": "user", "content": synthesis_prompt}
+                ],
+                temperature=0.7,
+                max_tokens=1500
             )
-            
-            result = resp.choices[0].message.content
-            print(f"✅ SUCCESS! Response length: {len(result)} chars")
-            print('--- END OPENAI CALL ---')
-            
-            return result
-            
+            return response.choices[0].message.content
         except Exception as e:
-            import traceback
-            error_type = type(e).__name__
-            error_msg = str(e)
-            
-            print("="*60)
-            print(f"❌ ERROR TYPE: {error_type}")
-            print(f"❌ ERROR MESSAGE: {error_msg}")
-            print("="*60)
-            print("FULL TRACEBACK:")
-            print(traceback.format_exc())
-            print("="*60)
-            
-            return f"OpenAI API Error ({error_type}): {error_msg}\n\nCheck the terminal for full error details."
+            # Fallback to simple concatenation
+            combined = "\n\n---\n\n".join([f"**{r['agent'].replace('_', ' ').title()}:**\n{r['response']}" for r in agent_responses])
+            return combined
     
-    def _simple_retrieve(self, query: str, top_k: int = 3) -> str:
-        """Simple keyword-based retrieval from documents"""
-        query_words = set(query.lower().split())
-        scored_docs = []
-        for doc in self.documents:
-            doc_words = set(doc['text'].lower().split())
-            score = len(query_words & doc_words)
-            if score > 0:
-                scored_docs.append((score, doc))
-        scored_docs.sort(reverse=True, key=lambda x: x[0])
-        top_docs = [doc for _, doc in scored_docs[:top_k]]
-        context = "\n\n".join([doc['text'] for doc in top_docs])
-        return context if context else ""
-    
-    def _build_prompt(self, query: str, context: str) -> str:
-        """Build enhanced prompt with context"""
-        if context:
-            return f"Context:\n{context}\n\nQuestion: {query}\n\nAnswer:"
-        return query
-    
-    def _call_ollama(self, prompt: str) -> str:
-        """Call Ollama local model"""
-        try:
-            print('--- CALLING OLLAMA ---')
-            print(f"Model: {self.ollama_model_name}")
-            print(f"Prompt: {prompt[:100]}...")
-            
-            response = requests.post(
-                f"{self.ollama_base_url}/api/generate",
-                json={
-                    "model": self.ollama_model_name,
-                    "prompt": prompt,
-                    "stream": False
+    def get_agent_status(self) -> Dict[str, Any]:
+        """
+        Get current status of all agents
+        """
+        return {
+            'agents': [
+                {
+                    'name': 'Intent Router',
+                    'id': 'intent_router',
+                    'status': 'idle',
+                    'usage_count': self.agent_usage_count.get('intent_router', 0)
                 },
-                timeout=30
-            )
-            
-            if response.status_code == 200:
-                result = response.json().get('response', 'No response generated.')
-                print(f"✅ Ollama SUCCESS! Response length: {len(result)} chars")
-                return result
-            else:
-                error_msg = f"Ollama returned status code {response.status_code}"
-                print(f"❌ Ollama ERROR: {error_msg}")
-                return f"Error calling Ollama: {error_msg}"
-                
-        except requests.exceptions.ConnectionError:
-            return "Error: Cannot connect to Ollama. Make sure Ollama is running (ollama serve) and the gemma:2b model is available."
-        except requests.exceptions.Timeout:
-            return "Error: Ollama request timed out. The model might be taking too long to respond."
-        except Exception as e:
-            return f"Error calling Ollama: {str(e)}"
+                {
+                    'name': 'Complaint Analyzer',
+                    'id': 'complaint_analyzer',
+                    'status': 'idle',
+                    'usage_count': self.agent_usage_count.get('complaint_analyzer', 0)
+                },
+                {
+                    'name': 'Compliance Guide',
+                    'id': 'compliance_guide',
+                    'status': 'idle',
+                    'usage_count': self.agent_usage_count.get('compliance_guide', 0)
+                },
+                {
+                    'name': 'Location Risk',
+                    'id': 'location_risk',
+                    'status': 'idle',
+                    'usage_count': self.agent_usage_count.get('location_risk', 0)
+                },
+                {
+                    'name': 'Strategic Advisor',
+                    'id': 'strategic_advisor',
+                    'status': 'idle',
+                    'usage_count': self.agent_usage_count.get('strategic_advisor', 0)
+                },
+                {
+                    'name': 'Violation Prevention',
+                    'id': 'violation_prevention',
+                    'status': 'idle',
+                    'usage_count': self.agent_usage_count.get('violation_prevention', 0)
+                }
+            ],
+            'total_executions': len(self.execution_history)
+        }
     
-    def ingest_csv(self, df: pd.DataFrame) -> Dict:
-        """Ingest CSV data into vector store"""
+    def get_stats(self) -> Dict[str, Any]:
+        """
+        Get comprehensive orchestrator statistics
+        """
+        total_chunks = self.vector_store.get_collection_size()
+        
+        avg_execution_time = 0
+        if self.execution_history:
+            avg_execution_time = sum(e['execution_time'] for e in self.execution_history) / len(self.execution_history)
+        
+        return {
+            'total_chunks': total_chunks,
+            'total_queries': len(self.execution_history),
+            'agent_usage': self.agent_usage_count,
+            'avg_execution_time': round(avg_execution_time, 2),
+            'recent_executions': self.execution_history[-10:] if self.execution_history else []
+        }
+    
+    def ingest_csv(self, df) -> Dict[str, Any]:
+        """
+        Ingest CSV data into vector store
+        """
         try:
-            self.documents = []
-            
-            for idx, row in df.iterrows():
-                text_parts = []
-                for col, val in row.items():
-                    if pd.notna(val):
-                        text_parts.append(f"{col}: {val}")
-                
-                doc_text = " | ".join(text_parts)
-                
-                self.documents.append({
-                    'text': doc_text,
-                    'metadata': row.to_dict()
-                })
-            
-            print(f"✅ Ingested {len(self.documents)} documents from CSV")
-            
+            result = self.vector_store.ingest_dataframe(df)
             return {
-                'success': True,
                 'rows_ingested': len(df),
-                'total_chunks': len(self.documents)
+                'total_chunks': self.vector_store.get_collection_size(),
+                'status': 'success'
             }
-            
         except Exception as e:
-            print(f"❌ CSV Ingestion Error: {str(e)}")
             return {
-                'success': False,
+                'rows_ingested': 0,
+                'total_chunks': 0,
+                'status': 'error',
                 'error': str(e)
             }
     
-    def get_stats(self) -> Dict:
-        """Get system statistics"""
-        stats = {
-            'document_count': len(self.documents),
-            'total_chunks': len(self.documents),
-            'cache_size': len(self.response_cache),
-            'models_available': ['gpt-4o-mini', 'ollama']
-        }
-        
-        # Add complaint agent stats if available
-        if self.complaint_agent:
-            stats['complaint_records'] = len(self.complaint_agent.df)
-            stats['complaint_agent_active'] = True
-        else:
-            stats['complaint_agent_active'] = False
-        
-        return stats
-
-    def compare_models(self, prompt: str) -> Dict:
-        """Compare responses from both models"""
+    def compare_models(self, prompt: str) -> Dict[str, Any]:
+        """
+        Compare responses from different models
+        """
         gpt_response = self.generate_with_context(prompt, model="gpt-4o-mini")
-        ollama_response = self.generate_with_context(prompt, model="ollama")
+        
+        # For Ollama, you'd call your ollama_client here
+        # ollama_response = self.ollama_client.generate(prompt)
+        ollama_response = "Ollama integration coming soon..."
+        
         return {
-            'gpt4o_mini_response': gpt_response,
-            'ollama_response': ollama_response,
-            'comparison_available': True
+            'gpt_response': gpt_response,
+            'ollama_response': ollama_response
         }
