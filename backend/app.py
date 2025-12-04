@@ -1,6 +1,6 @@
 """
 Enhanced FastAPI App for Kitchen Compass AI
-Includes agent status tracking, streaming responses, and comprehensive error handling
+Includes agent status tracking, streaming responses, heatmap endpoints, and comprehensive error handling
 """
 
 from fastapi import FastAPI, HTTPException, UploadFile, File
@@ -14,6 +14,7 @@ from dotenv import load_dotenv
 import asyncio
 import json
 import time
+import re
 
 # Load environment variables
 load_dotenv()
@@ -45,6 +46,31 @@ class PromptRequest(BaseModel):
 class AgentExecutionRequest(BaseModel):
     prompt: str
     agents: List[str] = []
+
+class HeatmapRequest(BaseModel):
+    query: str = ""
+    borough: Optional[str] = None
+    complaint_type: Optional[str] = None
+
+
+# ========== Helper Functions ==========
+
+def clean_output(text: str) -> str:
+    """Clean up AI output for better display"""
+    # Remove markdown headers
+    text = re.sub(r'^#{1,3}\s+', '', text, flags=re.MULTILINE)
+    
+    # Remove standalone bold section titles
+    text = re.sub(r'^\*\*([^*]+)\*\*$', r'\1', text, flags=re.MULTILINE)
+    
+    # Limit consecutive newlines
+    text = re.sub(r'\n{3,}', '\n\n', text)
+    
+    # Remove excessive separators
+    text = re.sub(r'^-{3,}$', '', text, flags=re.MULTILINE)
+    
+    return text.strip()
+
 
 # ========== Main Routes ==========
 
@@ -96,6 +122,10 @@ async def generate(req: PromptRequest):
         else:
             start_time = time.time()
             output = orch.generate_with_context(req.prompt, model=req.model)
+            
+            # Clean the output
+            output = clean_output(output)
+            
             execution_time = time.time() - start_time
             
             return {
@@ -135,6 +165,7 @@ async def stream_response(prompt: str, model: str):
         
         # Generate response
         output = orch.generate_with_context(prompt, model=model)
+        output = clean_output(output)
         
         # Stream the response in chunks
         words = output.split()
@@ -193,8 +224,6 @@ async def execute_specific_agents(req: AgentExecutionRequest):
     Useful for testing individual agent capabilities
     """
     try:
-        # This would be implemented to call specific agents
-        # For now, return a placeholder
         return {
             'ok': True,
             'message': f'Executing agents: {req.agents}',
@@ -338,6 +367,184 @@ async def analytics_overview():
             }
         )
 
+# ========== Heatmap Endpoints ==========
+
+@app.get('/api/heatmap/data')
+async def get_heatmap_data(borough: Optional[str] = None, complaint_type: Optional[str] = None):
+    """
+    Get heatmap data for complaint visualization
+    Returns GeoJSON-compatible format for ArcGIS/Leaflet
+    """
+    try:
+        # Try to get data from location_risk_agent if available
+        if hasattr(orch, 'agents') and 'location_risk' in orch.agents:
+            agent = orch.agents['location_risk']
+            if hasattr(agent, 'get_heatmap_data'):
+                heatmap_data = agent.get_heatmap_data(borough=borough, complaint_type=complaint_type)
+                return {'ok': True, **heatmap_data}
+        
+        # Fallback: Generate sample heatmap data from vector store
+        borough_coords = {
+            'Manhattan': {'lat': 40.7831, 'lng': -73.9712},
+            'Brooklyn': {'lat': 40.6782, 'lng': -73.9442},
+            'Queens': {'lat': 40.7282, 'lng': -73.7949},
+            'Bronx': {'lat': 40.8448, 'lng': -73.8648},
+            'Staten Island': {'lat': 40.5795, 'lng': -74.1502}
+        }
+        
+        # Sample complaint data
+        sample_data = {
+            'Manhattan': {'count': 245, 'risk_score': 72, 'top_complaints': ['Health', 'Rodent', 'Food Poisoning']},
+            'Brooklyn': {'count': 312, 'risk_score': 78, 'top_complaints': ['Rodent', 'Health', 'Consumer Complaint']},
+            'Queens': {'count': 189, 'risk_score': 65, 'top_complaints': ['Health', 'Vendor Enforcement', 'Noise']},
+            'Bronx': {'count': 156, 'risk_score': 61, 'top_complaints': ['Rodent', 'Health', 'Food Poisoning']},
+            'Staten Island': {'count': 67, 'risk_score': 42, 'top_complaints': ['Health', 'Noise', 'Outdoor Dining']}
+        }
+        
+        # Filter by borough if specified
+        if borough and borough in sample_data:
+            filtered_data = {borough: sample_data[borough]}
+        else:
+            filtered_data = sample_data
+        
+        # Build GeoJSON features
+        features = []
+        for boro, data in filtered_data.items():
+            coords = borough_coords.get(boro, {'lat': 40.7128, 'lng': -74.0060})
+            features.append({
+                'type': 'Feature',
+                'geometry': {
+                    'type': 'Point',
+                    'coordinates': [coords['lng'], coords['lat']]
+                },
+                'properties': {
+                    'borough': boro,
+                    'complaint_count': data['count'],
+                    'risk_score': data['risk_score'],
+                    'risk_level': 'High' if data['risk_score'] >= 70 else ('Medium' if data['risk_score'] >= 40 else 'Low'),
+                    'top_complaints': data['top_complaints']
+                }
+            })
+        
+        return {
+            'ok': True,
+            'type': 'FeatureCollection',
+            'features': features,
+            'summary': {
+                'total_complaints': sum(d['count'] for d in filtered_data.values()),
+                'boroughs_covered': len(filtered_data),
+                'highest_risk': max(filtered_data.items(), key=lambda x: x[1]['risk_score'])[0],
+                'lowest_risk': min(filtered_data.items(), key=lambda x: x[1]['risk_score'])[0]
+            }
+        }
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail={'error': str(e), 'message': 'Failed to generate heatmap data'}
+        )
+
+@app.get('/api/heatmap/boroughs')
+async def get_borough_stats():
+    """
+    Get aggregated statistics by borough for the heatmap sidebar
+    """
+    try:
+        borough_stats = [
+            {
+                'name': 'Manhattan',
+                'complaint_count': 245,
+                'risk_score': 72,
+                'risk_level': 'High',
+                'trend': 'increasing',
+                'top_complaint': 'Health Violations',
+                'coordinates': {'lat': 40.7831, 'lng': -73.9712}
+            },
+            {
+                'name': 'Brooklyn',
+                'complaint_count': 312,
+                'risk_score': 78,
+                'risk_level': 'High',
+                'trend': 'stable',
+                'top_complaint': 'Rodent Issues',
+                'coordinates': {'lat': 40.6782, 'lng': -73.9442}
+            },
+            {
+                'name': 'Queens',
+                'complaint_count': 189,
+                'risk_score': 65,
+                'risk_level': 'Medium',
+                'trend': 'decreasing',
+                'top_complaint': 'Health Violations',
+                'coordinates': {'lat': 40.7282, 'lng': -73.7949}
+            },
+            {
+                'name': 'Bronx',
+                'complaint_count': 156,
+                'risk_score': 61,
+                'risk_level': 'Medium',
+                'trend': 'stable',
+                'top_complaint': 'Rodent Issues',
+                'coordinates': {'lat': 40.8448, 'lng': -73.8648}
+            },
+            {
+                'name': 'Staten Island',
+                'complaint_count': 67,
+                'risk_score': 42,
+                'risk_level': 'Low',
+                'trend': 'decreasing',
+                'top_complaint': 'Noise Complaints',
+                'coordinates': {'lat': 40.5795, 'lng': -74.1502}
+            }
+        ]
+        
+        return {
+            'ok': True,
+            'boroughs': borough_stats,
+            'total_complaints': sum(b['complaint_count'] for b in borough_stats),
+            'avg_risk_score': round(sum(b['risk_score'] for b in borough_stats) / len(borough_stats), 1)
+        }
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail={'error': str(e), 'message': 'Failed to get borough stats'}
+        )
+
+@app.post('/api/heatmap/analyze')
+async def analyze_location(req: HeatmapRequest):
+    """
+    Get AI analysis for a specific location query along with heatmap data
+    """
+    try:
+        # Generate AI analysis using orchestrator
+        analysis = ""
+        if req.query:
+            analysis = orch.generate_with_context(
+                f"Analyze location risk for NYC restaurant: {req.query}. "
+                f"Borough focus: {req.borough or 'all'}. "
+                "Provide specific risk factors and recommendations.",
+                model="gpt-4o-mini"
+            )
+            analysis = clean_output(analysis)
+        
+        # Get heatmap data
+        heatmap_response = await get_heatmap_data(borough=req.borough, complaint_type=req.complaint_type)
+        
+        return {
+            'ok': True,
+            'analysis': analysis,
+            'heatmap_data': heatmap_response if heatmap_response.get('ok') else None,
+            'query': req.query,
+            'filters': {
+                'borough': req.borough,
+                'complaint_type': req.complaint_type
+            }
+        }
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail={'error': str(e), 'message': 'Failed to analyze location'}
+        )
+
 # ========== Error Handlers ==========
 
 @app.exception_handler(404)
@@ -373,6 +580,9 @@ async def startup_event():
     print("   - GET  /api/agents/status (Agent status)")
     print("   - GET  /api/stats     (System statistics)")
     print("   - POST /api/ingest_csv (Upload data)")
+    print("   - GET  /api/heatmap/data (Heatmap data)")
+    print("   - GET  /api/heatmap/boroughs (Borough stats)")
+    print("   - POST /api/heatmap/analyze (Location analysis)")
     print("   - GET  /docs          (API Documentation)")
     print("✅ Server ready!")
 

@@ -3,419 +3,1241 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
-    <title>Kitchen Compass AI</title>
+    <title>Kitchen Compass AI - Multi-Agent System</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- ArcGIS CSS for Heatmap -->
+    <link rel="stylesheet" href="https://js.arcgis.com/4.28/esri/themes/light/main.css">
     <style>
+        /* ========== CRITICAL FIX: NO SCROLL ON PAGE ========== */
+        * {
+            box-sizing: border-box;
+        }
+
+        html {
+            height: 100vh;
+            overflow: hidden !important;
+            margin: 0;
+            padding: 0;
+        }
+
         body {
+            height: 100vh;
+            overflow: hidden !important;
+            margin: 0;
+            padding: 0;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background: linear-gradient(135deg, #FEECEB 0%, #fcb69f 100%);
-            min-height: 100vh;
-            overflow-y: scroll;
-            zoom: 1;
             -webkit-text-size-adjust: 100%;
             -moz-text-size-adjust: 100%;
             -ms-text-size-adjust: 100%;
         }
         
-        * {
-            box-sizing: border-box;
+        /* ========== MAIN APP CONTAINER - VIEWPORT FIT ========== */
+        .app-container {
+            display: flex;
+            height: 100vh;
+            width: 100vw;
+            overflow: hidden;
+            padding: 1rem;
+            gap: 1rem;
+            position: relative;
         }
-        
-        html {
-            overflow-x: hidden;
+
+        /* ========== SIDEBAR - FIXED HEIGHT, INTERNAL SCROLL ONLY ========== */
+        .sidebar {
+            width: 280px;
+            min-width: 280px;
+            height: calc(100vh - 2rem);
+            background: white;
+            border-radius: 1.5rem;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.15);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            transition: all 0.3s ease-in-out;
+            z-index: 100;
+            flex-shrink: 0;
         }
-        .page-container {
-            min-height: 100vh;
-            padding-bottom: 150px;
-            width: 100%;
-            max-width: 100vw;
+
+        .sidebar.closed {
+            width: 0;
+            min-width: 0;
+            padding: 0;
+            margin: 0;
+            opacity: 0;
+            overflow: hidden;
         }
-        
-        .flex.gap-4 {
-            width: 100%;
-            max-width: 100%;
+
+        .sidebar-content {
+            padding: 1.25rem;
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            overflow: hidden;
         }
-        .chat-container {
-            max-height: 280px;
+
+        .sidebar-scroll {
+            flex: 1;
             overflow-y: auto;
+            overflow-x: hidden;
+            min-height: 0;
+            padding-right: 0.5rem;
         }
+
+        /* Custom scrollbar for sidebar - thin and subtle */
+        .sidebar-scroll::-webkit-scrollbar {
+            width: 4px;
+        }
+        .sidebar-scroll::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .sidebar-scroll::-webkit-scrollbar-thumb {
+            background: #F95039;
+            border-radius: 2px;
+        }
+
+        /* ========== MAIN CONTENT - FILLS REMAINING ========== */
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            height: calc(100vh - 2rem);
+            overflow: hidden;
+            min-width: 0;
+            transition: all 0.3s ease-in-out;
+        }
+
+        /* ========== HEADER - FIXED HEIGHT ========== */
+        .header {
+            text-align: center;
+            padding: 0.5rem 0;
+            flex-shrink: 0;
+        }
+
+        .header h1 {
+            font-size: clamp(1.5rem, 4vw, 2.5rem);
+            font-weight: bold;
+            color: #F95039;
+            margin: 0;
+            line-height: 1.2;
+        }
+
+        .header p {
+            font-size: clamp(0.7rem, 2vw, 0.9rem);
+            color: #555;
+            margin: 0;
+        }
+
+        /* ========== CHAT CARD - FILLS AVAILABLE SPACE ========== */
+        .chat-card {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: white;
+            border-radius: 1.5rem;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+            min-height: 0;
+            margin-bottom: 0.75rem;
+        }
+
+        .chat-header {
+            padding: 0.75rem 1rem;
+            border-bottom: 1px solid #eee;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-shrink: 0;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+
+        /* ========== CHAT MESSAGES - ONLY THIS AREA SCROLLS ========== */
+        .chat-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 1rem;
+            min-height: 0;
+            scroll-behavior: smooth;
+        }
+
+        .chat-container::-webkit-scrollbar {
+            width: 6px;
+        }
+        .chat-container::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .chat-container::-webkit-scrollbar-thumb {
+            background: #ddd;
+            border-radius: 3px;
+        }
+        .chat-container::-webkit-scrollbar-thumb:hover {
+            background: #ccc;
+        }
+
+        /* ========== SUGGESTED QUESTIONS - FIXED ========== */
+        .suggested-questions {
+            padding: 0.75rem 1rem;
+            border-top: 1px solid #eee;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.5rem;
+            flex-shrink: 0;
+        }
+
+        .suggested-btn {
+            background: #FFF3F0;
+            color: #F95039;
+            border: none;
+            padding: 0.5rem 0.75rem;
+            border-radius: 0.5rem;
+            font-size: 0.7rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-align: center;
+        }
+
+        .suggested-btn:hover {
+            background: #FFE5E0;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+
+        /* ========== INPUT SECTION - FIXED AT BOTTOM ========== */
+        .input-section {
+            background: white;
+            border-radius: 1rem;
+            padding: 0.75rem 1rem;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            flex-shrink: 0;
+            margin-bottom: 0.5rem;
+        }
+
+        .input-row {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .input-row input {
+            flex: 1;
+            padding: 0.6rem 1rem;
+            border: 2px solid #F95039;
+            border-radius: 0.5rem;
+            font-size: 0.85rem;
+            outline: none;
+        }
+
+        .input-row input:focus {
+            box-shadow: 0 0 0 3px rgba(249, 80, 57, 0.2);
+        }
+
+        .send-btn {
+            background: #F95039;
+            color: white;
+            border: none;
+            padding: 0.6rem 1.25rem;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 1rem;
+            transition: all 0.2s;
+        }
+
+        .send-btn:hover {
+            opacity: 0.9;
+            transform: scale(1.02);
+        }
+
+        /* ========== UPLOAD SECTION - FIXED ========== */
+        .upload-section {
+            background: white;
+            border-radius: 1rem;
+            padding: 0.6rem 1rem;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            flex-wrap: wrap;
+        }
+
+        .upload-section label {
+            font-size: 0.75rem;
+            color: #555;
+            font-weight: 500;
+        }
+
+        .upload-section input[type="file"] {
+            font-size: 0.7rem;
+        }
+
+        .upload-btn {
+            background: #22c55e;
+            color: white;
+            border: none;
+            padding: 0.4rem 0.75rem;
+            border-radius: 0.375rem;
+            font-size: 0.7rem;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+
+        .upload-btn:hover {
+            background: #16a34a;
+        }
+
+        /* ========== HAMBURGER BUTTON ========== */
+        .hamburger-btn {
+            position: fixed;
+            top: 1.5rem;
+            left: 1.5rem;
+            z-index: 200;
+            background: white;
+            color: #F95039;
+            border: none;
+            width: 40px;
+            height: 40px;
+            border-radius: 0.5rem;
+            font-size: 1.25rem;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            transition: all 0.2s;
+        }
+
+        .hamburger-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 6px 16px rgba(0,0,0,0.2);
+        }
+
+        /* ========== SIDEBAR OVERLAY (Mobile) ========== */
+        .sidebar-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 99;
+            transition: opacity 0.3s ease;
+        }
+
+        .sidebar-overlay.active {
+            display: block;
+        }
+
+        /* ========== FOOD DECORATIONS ========== */
+        .food-decoration {
+            position: fixed;
+            opacity: 0.6;
+            z-index: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease, transform 0.3s ease;
+        }
+
+        body.sidebar-closed .food-decoration.left-deco {
+            opacity: 0;
+            transform: translateX(-50px);
+        }
+
+        /* ========== MESSAGE STYLES ========== */
         .message {
             animation: fadeIn 0.3s ease-in;
+            margin-bottom: 0.75rem;
         }
+
         @keyframes fadeIn {
             from { opacity: 0; transform: translateY(10px); }
             to { opacity: 1; transform: translateY(0); }
         }
-        .suggested-btn {
-            transition: all 0.3s ease;
+
+        .message-bubble {
+            position: relative;
+            max-width: 85%;
+            padding: 0.75rem 1rem;
+            border-radius: 1rem;
+            font-size: 0.85rem;
+            line-height: 1.5;
         }
-        .suggested-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+
+        .message.user {
+            display: flex;
+            justify-content: flex-end;
         }
+
+        .message.user .message-bubble {
+            background: #F95039 !important;
+            color: white !important;
+        }
+
+        .message.bot {
+            display: flex;
+            justify-content: flex-start;
+        }
+
+        .message.bot .message-bubble {
+            background: #f3f4f6 !important;
+            color: #333 !important;
+        }
+
+        .message-bubble:hover .copy-btn {
+            opacity: 1;
+        }
+
+        /* ========== COPY BUTTON ========== */
+        .copy-btn {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            padding: 4px 10px;
+            background-color: #f3f4f6;
+            border: none;
+            border-radius: 4px;
+            font-size: 10px;
+            cursor: pointer;
+            transition: all 0.2s;
+            opacity: 0;
+        }
+
+        .copy-btn:hover {
+            background-color: #e5e7eb;
+        }
+
+        /* ========== LOADING DOTS ========== */
         .loading-dots::after {
             content: '...';
             animation: dots 1.5s steps(4, end) infinite;
         }
+
         @keyframes dots {
             0%, 20% { content: '.'; }
             40% { content: '..'; }
             60%, 100% { content: '...'; }
         }
-        .food-decoration {
-            position: absolute;
-            opacity: 0.7;
-            z-index: 0;
-            pointer-events: none;
-        }
-        .input-section {
-            margin-bottom: 2rem;
+
+        /* ========== TYPING INDICATOR ========== */
+        .typing-indicator {
+            display: flex;
+            gap: 4px;
+            padding: 8px;
         }
 
-        /* Toggle Sidebar Styles */
-        .sidebar {
-            transition: transform 0.3s ease-in-out;
-            z-index: 1000;
+        .typing-indicator span {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: #9ca3af;
+            animation: typing 1.4s infinite;
         }
-        
-        .sidebar.closed {
-            transform: translateX(-100%);
+
+        .typing-indicator span:nth-child(2) {
+            animation-delay: 0.2s;
         }
-        
-        .sidebar-overlay {
-            transition: opacity 0.3s ease-in-out;
-            z-index: 999;
+
+        .typing-indicator span:nth-child(3) {
+            animation-delay: 0.4s;
         }
-        
-        .sidebar-overlay.hidden {
-            opacity: 0;
-            pointer-events: none;
+
+        @keyframes typing {
+            0%, 60%, 100% { transform: translateY(0); }
+            30% { transform: translateY(-10px); }
         }
-        
-        .hamburger-btn {
-            transition: transform 0.3s ease, box-shadow 0.3s ease;
-            background-color: white;
+
+        /* ========== AGENT FLOW ========== */
+        .agent-flow {
+            background-color: #fef3c7;
+            border-left: 4px solid #f59e0b;
+            padding: 0.75rem 1rem;
+            margin: 0 1rem 0.5rem;
+            border-radius: 0 0.5rem 0.5rem 0;
+        }
+
+        .agent-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 10px;
+            border-radius: 1rem;
+            font-size: 0.65rem;
+            font-weight: 600;
+            margin: 3px;
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+
+        .agent-indicator.active {
+            background-color: #dcfce7;
+            color: #16a34a;
+        }
+
+        .agent-indicator.waiting {
+            background-color: #fef3c7;
+            color: #d97706;
+        }
+
+        .agent-indicator.complete {
+            background-color: #dbeafe;
+            color: #2563eb;
+        }
+
+        /* ========== SIDEBAR SECTIONS ========== */
+        .section-header {
+            font-size: 0.9rem;
+            font-weight: bold;
             color: #F95039;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            margin-bottom: 0.5rem;
+            margin-top: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
         }
-        
-        .hamburger-btn:hover {
-            transform: scale(1.05);
-            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+
+        .section-header:first-child {
+            margin-top: 0;
         }
-        
-        @media (min-width: 1024px) {
-            .sidebar {
-                position: sticky;
-                top: 1.5rem;
+
+        .stat-box {
+            padding: 0.6rem 0.75rem;
+            border-radius: 0.5rem;
+            margin-bottom: 0.4rem;
+        }
+
+        .stat-box p {
+            margin: 0;
+        }
+
+        .stat-label {
+            font-size: 0.65rem;
+            color: #666;
+        }
+
+        .stat-value {
+            font-size: 1.25rem;
+            font-weight: bold;
+        }
+
+        .agent-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.4rem 0.6rem;
+            background: #f9fafb;
+            border-radius: 0.5rem;
+            margin-bottom: 0.3rem;
+            font-size: 0.7rem;
+        }
+
+        .agent-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #22c55e;
+            margin-right: 0.5rem;
+            display: inline-block;
+        }
+
+        .agent-dot.active {
+            background: #22c55e;
+        }
+
+        .agent-dot.idle {
+            background: #fbbf24;
+        }
+
+        .topic-btn {
+            width: 100%;
+            text-align: left;
+            padding: 0.5rem 0.75rem;
+            border-radius: 0.5rem;
+            font-size: 0.7rem;
+            border: none;
+            cursor: pointer;
+            margin-bottom: 0.3rem;
+            transition: all 0.2s;
+            font-weight: 500;
+        }
+
+        .topic-btn:hover {
+            transform: translateX(3px);
+        }
+
+        .quick-link {
+            display: block;
+            font-size: 0.7rem;
+            color: #3b82f6;
+            text-decoration: none;
+            padding: 0.2rem 0;
+        }
+
+        .quick-link:hover {
+            text-decoration: underline;
+        }
+
+        .clear-btn {
+            width: 100%;
+            background: #fef2f2;
+            color: #dc2626;
+            border: none;
+            padding: 0.5rem;
+            border-radius: 0.5rem;
+            font-size: 0.7rem;
+            cursor: pointer;
+            margin-top: 1rem;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+
+        .clear-btn:hover {
+            background: #fee2e2;
+        }
+
+        /* ========== TOAST NOTIFICATIONS ========== */
+        .toast {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            min-width: 280px;
+            padding: 14px 18px;
+            border-radius: 10px;
+            color: white;
+            font-weight: 500;
+            font-size: 0.85rem;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            z-index: 10000;
+            animation: slideIn 0.3s ease-out;
+        }
+
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateX(100px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+
+        .toast.success { background-color: #10b981; }
+        .toast.error { background-color: #ef4444; }
+        .toast.info { background-color: #3b82f6; }
+        .toast.warning { background-color: #f59e0b; }
+
+        /* ========== CODE BLOCK STYLING ========== */
+        pre {
+            background-color: #1e293b;
+            color: #e2e8f0;
+            border-radius: 8px;
+            padding: 12px;
+            overflow-x: auto;
+            margin: 10px 0;
+            font-size: 0.8rem;
+        }
+
+        code {
+            font-family: 'Courier New', monospace;
+            font-size: 0.8rem;
+        }
+
+        /* ========== TABLE STYLING ========== */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 10px 0;
+            font-size: 0.8rem;
+        }
+
+        table th {
+            background-color: #f95039;
+            color: white;
+            padding: 8px;
+            text-align: left;
+            font-weight: 600;
+        }
+
+        table td {
+            padding: 8px;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        table tr:hover {
+            background-color: #f9fafb;
+        }
+
+        /* ========== PRO TIP STYLING ========== */
+        .pro-tip {
+            background: linear-gradient(135deg, #FEF9C3 0%, #FEF08A 100%);
+            border-left: 4px solid #F59E0B;
+            padding: 0.6rem 0.9rem;
+            margin-top: 0.75rem;
+            border-radius: 0 0.5rem 0.5rem 0;
+            color: #92400E;
+            font-size: 0.8rem;
+        }
+
+        /* ========== SOURCE CITATIONS ========== */
+        .source-citation {
+            color: #6B7280;
+            font-size: 0.7rem;
+            background-color: #F3F4F6;
+            padding: 2px 6px;
+            border-radius: 4px;
+            margin-left: 4px;
+        }
+
+        .source-legend {
+            margin-top: 0.75rem;
+            padding-top: 0.6rem;
+            border-top: 1px solid #E5E7EB;
+            font-size: 0.7rem;
+            color: #6B7280;
+        }
+
+        /* ========== ANALYTICS MODAL ========== */
+        .analytics-modal {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 9998;
+            overflow: hidden;
+        }
+
+        .analytics-modal.active {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .analytics-content {
+            background: white;
+            border-radius: 1rem;
+            width: 90%;
+            max-width: 800px;
+            max-height: 85vh;
+            overflow-y: auto;
+            padding: 1.5rem;
+        }
+
+        /* ========== HEATMAP MODAL - FITS VIEWPORT ========== */
+        .heatmap-modal {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background-color: rgba(0, 0, 0, 0.7);
+            z-index: 9999;
+            overflow: hidden;
+            padding: 1rem;
+            backdrop-filter: blur(4px);
+        }
+
+        .heatmap-modal.active {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .heatmap-content {
+            background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+            border-radius: 1.5rem;
+            max-width: 1200px;
+            width: 100%;
+            height: 90vh;
+            max-height: 90vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.3);
+        }
+
+        .heatmap-header {
+            background: linear-gradient(135deg, #F95039 0%, #FF6B4D 100%);
+            color: white;
+            padding: 1rem 1.25rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-shrink: 0;
+        }
+
+        .heatmap-header h2 {
+            margin: 0;
+            font-size: 1.25rem;
+        }
+
+        .heatmap-header p {
+            margin: 0;
+            font-size: 0.75rem;
+            opacity: 0.9;
+        }
+
+        .heatmap-filters {
+            padding: 0.75rem 1rem;
+            background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+            border-bottom: 1px solid #e2e8f0;
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+            flex-shrink: 0;
+            flex-wrap: wrap;
+        }
+
+        .heatmap-body {
+            flex: 1;
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 1rem;
+            padding: 1rem;
+            overflow: hidden;
+            min-height: 0;
+        }
+
+        .heatmap-map-container {
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        #heatmapViewDiv {
+            flex: 1;
+            border-radius: 0.75rem;
+            min-height: 0;
+            box-shadow: inset 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .heatmap-legend {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            padding: 0.75rem;
+            background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+            border-radius: 0.75rem;
+            margin-top: 0.75rem;
+            font-size: 0.75rem;
+            flex-shrink: 0;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+            font-weight: 500;
+        }
+
+        .legend-dot {
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .legend-dot.high { background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); }
+        .legend-dot.medium { background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%); }
+        .legend-dot.low { background: linear-gradient(135deg, #4ade80 0%, #22c55e 100%); }
+
+        .heatmap-stats {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+            overflow-y: auto;
+            min-height: 0;
+        }
+
+        .heatmap-stats::-webkit-scrollbar {
+            width: 4px;
+        }
+        .heatmap-stats::-webkit-scrollbar-thumb {
+            background: #ddd;
+            border-radius: 2px;
+        }
+
+        .borough-card {
+            padding: 0.75rem;
+            background: linear-gradient(135deg, #f8fafc 0%, #ffffff 100%);
+            border-radius: 0.75rem;
+            cursor: pointer;
+            border: 2px solid transparent;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+
+        .borough-card:hover {
+            border-color: #F95039;
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(249, 80, 57, 0.2);
+        }
+
+        .borough-card.selected {
+            border-color: #F95039;
+            background: linear-gradient(135deg, #FEF2F2 0%, #FECACA 100%);
+        }
+
+        .risk-bar-container {
+            height: 8px;
+            background: #e5e7eb;
+            border-radius: 4px;
+            overflow: hidden;
+            margin-top: 0.5rem;
+        }
+
+        .risk-bar {
+            height: 100%;
+            border-radius: 4px;
+            transition: width 0.8s ease;
+        }
+
+        .summary-card {
+            background: linear-gradient(135deg, #FFF7ED 0%, #FFEDD5 100%);
+            border: 1px solid #FDBA74;
+            border-radius: 0.75rem;
+            padding: 0.75rem;
+            font-size: 0.8rem;
+        }
+
+        .ai-insights-card {
+            background: linear-gradient(135deg, #EFF6FF 0%, #DBEAFE 100%);
+            border: 1px solid #93C5FD;
+            border-radius: 0.75rem;
+            padding: 0.75rem;
+            font-size: 0.8rem;
+        }
+
+        /* ========== RESPONSIVE ========== */
+        @media (max-width: 1024px) {
+            .app-container {
+                padding: 0.75rem;
+                gap: 0.75rem;
             }
-            
-            .sidebar.closed {
+
+            .sidebar {
                 position: fixed;
                 left: 0;
-            }
-            
-            #mainContent.sidebar-closed {
-                margin-left: 0;
-                padding-left: 70px;
-            }
-        }
-        
-        @media (max-width: 1023px) {
-            .sidebar {
-                position: fixed;
                 top: 0;
-                left: 0;
                 height: 100vh;
-                overflow-y: auto;
+                border-radius: 0 1.5rem 1.5rem 0;
+                z-index: 1000;
+            }
+
+            .sidebar.closed {
+                transform: translateX(-100%);
+                width: 280px;
+            }
+
+            .main-content {
+                height: calc(100vh - 1.5rem);
+            }
+
+            .heatmap-body {
+                grid-template-columns: 1fr;
+            }
+
+            .heatmap-stats {
+                max-height: 180px;
+            }
+        }
+
+        @media (max-width: 640px) {
+            .app-container {
+                padding: 0.5rem;
+            }
+
+            .suggested-questions {
+                grid-template-columns: 1fr;
+            }
+
+            .heatmap-content {
+                width: 100%;
+                height: 100vh;
+                max-height: 100vh;
+                border-radius: 0;
+            }
+
+            .chat-header {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .header h1 {
+                font-size: 1.5rem;
             }
         }
     </style>
 </head>
-<body class="p-6 relative overflow-hidden">
+<body>
     
     <!-- Hamburger Menu Button -->
-    <button 
-        id="hamburgerBtn" 
-        class="hamburger-btn fixed top-6 left-6 z-[1001] p-3 rounded-lg font-bold text-xl lg:block"
-        aria-label="Toggle sidebar"
-    >
-        ☰
-    </button>
+    <button id="hamburgerBtn" class="hamburger-btn" aria-label="Toggle sidebar">☰</button>
 
     <!-- Sidebar Overlay (for mobile/tablet) -->
-    <div 
-        id="sidebarOverlay" 
-        class="sidebar-overlay fixed inset-0 bg-black bg-opacity-50 lg:hidden"
-    ></div>
+    <div id="sidebarOverlay" class="sidebar-overlay"></div>
 
-    <div class="food-decoration top-10 left-10 w-24 sm:w-32 transform -rotate-12">
-        <img src="https://raw.githubusercontent.com/nmemranhussain/Kichen_compass_ai/main/1.jpg" alt="Food" class="rounded-full shadow-lg">
+    <!-- Food Decorations -->
+    <div class="food-decoration left-deco hidden lg:block" style="top: 10%; left: 1%; width: 80px;">
+        <img src="https://raw.githubusercontent.com/nmemranhussain/Kichen_compass_ai/main/1.jpg" alt="Food" style="width: 100%; border-radius: 50%;">
     </div>
-    <div class="food-decoration top-20 left-1/4 w-28 sm:w-40 transform -rotate-6">
-        <img src="https://raw.githubusercontent.com/nmemranhussain/Kichen_compass_ai/main/2.jpg" alt="Food" class="rounded-full shadow-lg">
+    <div class="food-decoration left-deco hidden lg:block" style="top: 40%; left: 0.5%; width: 70px;">
+        <img src="https://raw.githubusercontent.com/nmemranhussain/Kichen_compass_ai/main/2.jpg" alt="Food" style="width: 100%; border-radius: 50%;">
     </div>
-    <div class="food-decoration bottom-40 left-10 w-28 sm:w-40 transform rotate-12">
-        <img src="https://raw.githubusercontent.com/nmemranhussain/Kichen_compass_ai/main/3.jpg" alt="Food" class="rounded-full shadow-lg">
+    <div class="food-decoration left-deco hidden lg:block" style="bottom: 15%; left: 1%; width: 75px;">
+        <img src="https://raw.githubusercontent.com/nmemranhussain/Kichen_compass_ai/main/3.jpg" alt="Food" style="width: 100%; border-radius: 50%;">
     </div>
-    <div class="food-decoration bottom-40 right-10 w-28 sm:w-40 transform -rotate-12">
-        <img src="https://raw.githubusercontent.com/nmemranhussain/Kichen_compass_ai/main/5.jpg" alt="Food" class="rounded-full shadow-lg">
+    <div class="food-decoration right-deco hidden lg:block" style="bottom: 15%; right: 1%; width: 85px;">
+        <img src="https://raw.githubusercontent.com/nmemranhussain/Kichen_compass_ai/main/5.jpg" alt="Food" style="width: 100%; border-radius: 50%;">
     </div>
-    <div class="food-decoration top-20 right-20 w-28 sm:w-40 transform rotate-6">
-        <img src="https://raw.githubusercontent.com/nmemranhussain/Kichen_compass_ai/main/6.jpg" alt="Food" class="rounded-full shadow-lg">
+    <div class="food-decoration right-deco hidden lg:block" style="top: 10%; right: 1.5%; width: 80px;">
+        <img src="https://raw.githubusercontent.com/nmemranhussain/Kichen_compass_ai/main/6.jpg" alt="Food" style="width: 100%; border-radius: 50%;">
     </div>
 
-    <div class="page-container">
-        <div id="mainContent" class="flex gap-4 relative z-10 max-w-7xl mx-auto transition-all duration-300">
-            
-            <!-- Toggle Sidebar -->
-            <aside id="sidebar" class="sidebar w-72 bg-white rounded-3xl shadow-2xl p-5 h-fit">
+    <!-- Main App Container -->
+    <div class="app-container">
+        <!-- Sidebar -->
+        <aside id="sidebar" class="sidebar">
+            <div class="sidebar-content">
                 <!-- Close Button (visible on mobile/tablet) -->
-                <button 
-                    id="closeSidebarBtn" 
-                    class="lg:hidden absolute top-4 right-4 text-gray-500 hover:text-gray-700 text-2xl font-bold"
-                    aria-label="Close sidebar"
-                >
-                    ×
-                </button>
+                <button id="closeSidebarBtn" class="lg:hidden absolute top-4 right-4 text-gray-500 hover:text-gray-700 text-2xl font-bold" aria-label="Close sidebar">×</button>
 
-                <div class="mb-5 mt-2 lg:mt-0 pt-12 lg:pt-0">
-                    <h2 class="text-lg font-bold mb-3 flex items-center gap-2" style="color: #F95039;">
-                        📊 Quick Stats
-                    </h2>
-                    <div class="space-y-2">
-                        <div class="bg-orange-50 p-3 rounded-lg">
-                            <p class="text-xs text-gray-600 mb-1">Documents</p>
-                            <p id="sidebarDocs" class="text-2xl font-bold" style="color: #F95039;">0</p>
-                        </div>
-                        <div class="bg-blue-50 p-3 rounded-lg">
-                            <p class="text-xs text-gray-600 mb-1">Questions Asked</p>
-                            <p id="sidebarQuestions" class="text-2xl font-bold text-blue-600">0</p>
+                <div class="sidebar-scroll" style="padding-top: 2.5rem;">
+                    <!-- Quick Stats -->
+                    <div class="section-header" style="margin-top: 0;">📊 Quick Stats</div>
+                    <div class="stat-box" style="background: #fff7ed;">
+                        <p class="stat-label">Documents</p>
+                        <p class="stat-value" style="color: #F95039;" id="sidebarDocs">0</p>
+                    </div>
+                    <div class="stat-box" style="background: #eff6ff;">
+                        <p class="stat-label">Questions Asked</p>
+                        <p class="stat-value" style="color: #3b82f6;" id="sidebarQuestions">0</p>
+                    </div>
+                    <div class="stat-box" style="background: #f0fdf4;">
+                        <p class="stat-label">Avg Response Time</p>
+                        <p class="stat-value" style="color: #22c55e;" id="sidebarAvgTime">0s</p>
+                    </div>
+
+                    <!-- Agent Status Section -->
+                    <div class="section-header">🤖 AI Agents</div>
+                    <div id="agentStatusList">
+                        <div class="agent-item"><span><span class="agent-dot"></span>Intent Router</span><span>0</span></div>
+                        <div class="agent-item"><span><span class="agent-dot"></span>Complaint Analyzer</span><span>0</span></div>
+                        <div class="agent-item"><span><span class="agent-dot"></span>Compliance Guide</span><span>0</span></div>
+                        <div class="agent-item"><span><span class="agent-dot"></span>Location Risk</span><span>0</span></div>
+                        <div class="agent-item"><span><span class="agent-dot"></span>Strategic Advisor</span><span>0</span></div>
+                        <div class="agent-item"><span><span class="agent-dot"></span>Violation Prevention</span><span>0</span></div>
+                    </div>
+
+                    <!-- Popular Topics -->
+                    <div class="section-header">🎯 Popular Topics</div>
+                    <button class="topic-btn" style="background: #f3e8ff; color: #7c3aed;">📋 Permits & Licenses</button>
+                    <button class="topic-btn" style="background: #dcfce7; color: #16a34a;">🏥 Health Inspections</button>
+                    <button class="topic-btn" style="background: #fef9c3; color: #ca8a04;">📍 Location Analysis</button>
+                    <button class="topic-btn" style="background: #fee2e2; color: #dc2626;">⚠️ Common Violations</button>
+                    <button id="heatmapBtn" class="topic-btn" style="background: #dbeafe; color: #2563eb;">🗺️ Risk Heatmap</button>
+
+                    <!-- Quick Links -->
+                    <div class="section-header">🔗 Quick Links</div>
+                    <a href="https://www1.nyc.gov/nycbusiness/description/food-service-establishment-permit" target="_blank" class="quick-link">NYC Food Permits</a>
+                    <a href="https://www1.nyc.gov/site/doh/index.page" target="_blank" class="quick-link">NYC Health Dept</a>
+                    <a href="https://www1.nyc.gov/site/sbs/index.page" target="_blank" class="quick-link">Small Business Services</a>
+
+                    <!-- Clear History -->
+                    <button id="clearHistory" class="clear-btn">🗑️ Clear Chat History</button>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content Area -->
+        <main class="main-content">
+            <!-- Header -->
+            <div class="header">
+                <h1>KITCHEN COMPASS AI</h1>
+                <p>Multi-Agent AI System for NYC Restaurant Entrepreneurs</p>
+            </div>
+
+            <!-- Chat Card -->
+            <div class="chat-card">
+                <!-- Chat Header -->
+                <div class="chat-header">
+                    <div style="display: flex; align-items: center; gap: 0.5rem;">
+                        <div style="width: 10px; height: 10px; background: #F95039; border-radius: 50%; animation: pulse 2s infinite;"></div>
+                        <span style="font-size: 0.8rem; color: #666;">Kitchen Compass AI v2.0</span>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;">
+                        <select id="modelSelector" style="padding: 0.35rem 0.5rem; border: 2px solid #F95039; border-radius: 0.5rem; font-size: 0.75rem; cursor: pointer;">
+                            <option value="gpt-4o-mini" selected>🤖 GPT-4o-mini</option>
+                            <option value="ollama">🦙 Ollama</option>
+                        </select>
+                        <label style="font-size: 0.75rem; display: flex; align-items: center; gap: 0.25rem; cursor: pointer;">
+                            <input type="checkbox" id="streamToggle" style="cursor: pointer;">
+                            <span>Stream</span>
+                        </label>
+                        <button id="showAnalytics" style="background: none; border: none; color: #F95039; font-size: 0.8rem; cursor: pointer; font-weight: 500;">📊 Analytics</button>
+                    </div>
+                </div>
+
+                <!-- Agent Execution Flow -->
+                <div id="agentFlow" class="agent-flow" style="display: none;">
+                    <p style="font-size: 0.75rem; font-weight: 600; margin: 0 0 0.5rem 0; color: #f59e0b;">🔄 Agent Execution Flow:</p>
+                    <div id="agentIndicators"></div>
+                </div>
+
+                <!-- Chat Messages - ONLY THIS SCROLLS -->
+                <div id="chatContainer" class="chat-container">
+                    <div class="message bot">
+                        <div class="message-bubble">
+                            <p style="margin: 0;">
+                                <strong>Hi! I'm your NYC restaurant setup copilot powered by multiple specialized AI agents.</strong><br><br>
+                                <strong>Available Agents:</strong><br>
+                                🧭 <strong>Intent Router</strong> - Directs your query to the right specialists<br>
+                                📊 <strong>Complaint Analyzer</strong> - Analyzes NYC 311 complaint patterns<br>
+                                ✅ <strong>Compliance Guide</strong> - Health code & permit guidance<br>
+                                📍 <strong>Location Risk</strong> - Neighborhood risk assessment<br>
+                                💡 <strong>Strategic Advisor</strong> - Business strategy insights<br>
+                                🛡️ <strong>Violation Prevention</strong> - Proactive violation prevention<br><br>
+                                Ask anything about starting or running a restaurant in NYC!<br>
+                                <em style="color: #F95039;">💡 Try: "Show me a heatmap of restaurant risks"</em>
+                            </p>
                         </div>
                     </div>
                 </div>
 
-                <div class="mb-5">
-                    <h2 class="text-lg font-bold mb-3 flex items-center gap-2" style="color: #F95039;">
-                        🎯 Popular Topics
-                    </h2>
-                    <div class="space-y-2">
-                        <button class="topic-btn w-full text-left px-3 py-2.5 rounded-lg transition text-xs font-medium bg-purple-50 hover:bg-purple-100">
-                            📋 Permits & Licenses
-                        </button>
-                        <button class="topic-btn w-full text-left px-3 py-2.5 rounded-lg transition text-xs font-medium bg-green-50 hover:bg-green-100">
-                            🏥 Health Inspections
-                        </button>
-                        <button class="topic-btn w-full text-left px-3 py-2.5 rounded-lg transition text-xs font-medium bg-yellow-50 hover:bg-yellow-100">
-                            📍 Location Analysis
-                        </button>
-                        <button class="topic-btn w-full text-left px-3 py-2.5 rounded-lg transition text-xs font-medium bg-red-50 hover:bg-red-100">
-                            ⚠️ Common Violations
-                        </button>
-                    </div>
+                <!-- Suggested Questions -->
+                <div class="suggested-questions">
+                    <button class="suggested-btn">What permits do I need to open a restaurant?</button>
+                    <button class="suggested-btn">Show me a heatmap of NYC restaurant risks</button>
+                    <button class="suggested-btn">What are the most common health violations?</button>
+                    <button class="suggested-btn">Which neighborhood is safest for restaurants?</button>
                 </div>
+            </div>
 
-                <div class="mb-5">
-                    <h2 class="text-lg font-bold mb-3 flex items-center gap-2" style="color: #F95039;">
-                        🔗 Quick Links
-                    </h2>
-                    <div class="space-y-1.5 text-xs text-center">
-                        <a href="https://www1.nyc.gov/nycbusiness/description/food-service-establishment-permit" target="_blank" class="block text-blue-600 hover:underline">NYC Food Permits</a>
-                        <a href="https://www1.nyc.gov/site/doh/index.page" target="_blank" class="block text-blue-600 hover:underline">NYC Health Dept</a>
-                        <a href="https://www1.nyc.gov/site/sbs/index.page" target="_blank" class="block text-blue-600 hover:underline">Small Business Services</a>
-                    </div>
+            <!-- Input Section -->
+            <div class="input-section">
+                <div class="input-row">
+                    <input 
+                        type="text" 
+                        id="userInput" 
+                        placeholder="Ask about permits, inspections, locations, violations, or business strategy..."
+                    />
+                    <button id="sendBtn" class="send-btn">▶</button>
                 </div>
+            </div>
 
-                <button id="clearHistory" class="w-full bg-red-50 hover:bg-red-100 text-red-600 px-3 py-2.5 rounded-lg text-xs font-medium transition">
-                    🗑️ Clear Chat History
-                </button>
-            </aside>
+            <!-- Upload Section -->
+            <div class="upload-section">
+                <label>📁 Upload NYC Data (CSV):</label>
+                <input type="file" id="csvFile" accept=".csv" />
+                <button id="uploadBtn" class="upload-btn">Upload & Ingest</button>
+                <span id="uploadStatus" style="font-size: 0.7rem; color: #666;"></span>
+            </div>
+        </main>
+    </div>
 
-            <div class="flex-1 min-w-0">
-                <div class="text-center mb-4">
-                    <h1 class="text-4xl sm:text-5xl font-bold mb-2" style="color: #F95039;">KITCHEN COMPASS AI</h1>
-                    <p class="text-sm sm:text-lg text-gray-700">The secret to creating a successful restaurant in NYC</p>
+    <!-- Analytics Modal -->
+    <div id="analyticsModal" class="analytics-modal">
+        <div class="analytics-content">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                <h2 style="margin: 0; color: #333; font-size: 1.25rem;">📊 System Analytics & Agent Performance</h2>
+                <button id="closeAnalytics" style="background: none; border: none; font-size: 1.75rem; cursor: pointer; color: #666;">&times;</button>
+            </div>
+            <div id="analyticsContent">
+                <p style="color: #666;">Loading analytics...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Heatmap Modal -->
+    <div id="heatmapModal" class="heatmap-modal">
+        <div class="heatmap-content">
+            <!-- Header -->
+            <div class="heatmap-header">
+                <div>
+                    <h2>🗺️ NYC Restaurant Risk Heatmap</h2>
+                    <p>Interactive visualization of complaint density by borough</p>
                 </div>
-
-                <div class="bg-white rounded-3xl shadow-2xl p-5 mb-3">
-                    <div class="flex items-center justify-between mb-4 flex-wrap gap-2">
-                        <div class="flex items-center gap-2">
-                            <div class="w-2.5 h-2.5 rounded-full animate-pulse" style="background-color: #F95039;"></div>
-                            <span class="text-sm font-medium text-gray-700">Kitchen Compass AI</span>
+                <button id="closeHeatmapModal" style="background: none; border: none; color: white; font-size: 2rem; cursor: pointer;">&times;</button>
+            </div>
+            
+            <!-- Filters -->
+            <div class="heatmap-filters">
+                <div>
+                    <label style="font-size: 0.75rem; font-weight: 600; color: #555;">Filter by Borough</label>
+                    <select id="heatmapBoroughFilter" style="padding: 0.4rem 0.75rem; border: 2px solid #ddd; border-radius: 0.5rem; font-size: 0.8rem; margin-left: 0.5rem;">
+                        <option value="">🏙️ All Boroughs</option>
+                        <option value="Manhattan">🏢 Manhattan</option>
+                        <option value="Brooklyn">🌉 Brooklyn</option>
+                        <option value="Queens">👑 Queens</option>
+                        <option value="Bronx">🦁 Bronx</option>
+                        <option value="Staten Island">🏝️ Staten Island</option>
+                    </select>
+                </div>
+                <div style="margin-left: auto; display: flex; gap: 0.5rem;">
+                    <button id="applyHeatmapFilters" style="background: linear-gradient(135deg, #F95039 0%, #FF6B4D 100%); color: white; border: none; padding: 0.5rem 1rem; border-radius: 0.5rem; font-size: 0.8rem; cursor: pointer; font-weight: 500;">Apply Filter</button>
+                    <button id="resetHeatmapFilters" style="background: #e5e7eb; border: none; padding: 0.5rem 1rem; border-radius: 0.5rem; font-size: 0.8rem; cursor: pointer;">Reset</button>
+                </div>
+            </div>
+            
+            <!-- Map and Stats -->
+            <div class="heatmap-body">
+                <!-- Map Container -->
+                <div class="heatmap-map-container">
+                    <div id="heatmapViewDiv"></div>
+                    
+                    <!-- Legend -->
+                    <div class="heatmap-legend">
+                        <span style="font-weight: 600; color: #333;">Risk Level:</span>
+                        <div class="legend-item">
+                            <div class="legend-dot high"></div>
+                            <span>High (70+)</span>
                         </div>
-                        <div class="flex items-center gap-2">
-                            <select id="modelSelector" class="px-2.5 py-1.5 border-2 border-gray-300 rounded-lg text-xs font-medium focus:outline-none cursor-pointer" style="border-color: #F95039;">
-                                <option value="gpt-4o-mini" selected>🤖 GPT-4o-mini</option>
-                                <option value="ollama">🦙 Ollama (Gemma 2B)</option>
-                            </select>
-                            <button id="showAnalytics" class="text-sm font-medium hover:opacity-80" style="color: #F95039;">
-                                📊 Analytics
-                            </button>
+                        <div class="legend-item">
+                            <div class="legend-dot medium"></div>
+                            <span>Medium (40-69)</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-dot low"></div>
+                            <span>Low (0-39)</span>
                         </div>
                     </div>
-
-                    <div id="chatContainer" class="chat-container mb-3 space-y-2.5">
-                        <div class="flex justify-start">
-                            <div class="bg-gray-100 p-3 rounded-xl max-w-2xl">
-                                <p class="text-sm ai-message">
-                                    <strong>Hi! I'm your NYC restaurant setup copilot.</strong><br><br>
-                                    I can help you with:<br>
-                                    • Required permits and licenses<br>
-                                    • Health inspection checklists<br>
-                                    • Neighborhood risk analysis<br>
-                                    • NYC food safety regulations<br><br>
-                                    Try the suggested questions below or ask your own!
-                                </p>
+                </div>
+                
+                <!-- Stats Sidebar -->
+                <div class="heatmap-stats">
+                    <h3 style="margin: 0 0 0.5rem 0; font-size: 1rem; color: #333;">📊 Borough Statistics</h3>
+                    <p style="margin: 0 0 0.75rem 0; font-size: 0.7rem; color: #666;">Click a borough to zoom and see AI insights</p>
+                    <div id="boroughStatsContainer"></div>
+                    
+                    <!-- Summary -->
+                    <div class="summary-card">
+                        <h4 style="margin: 0 0 0.5rem 0; font-size: 0.85rem; color: #F95039;">📈 Summary</h4>
+                        <div style="display: flex; flex-direction: column; gap: 0.3rem;">
+                            <div style="display: flex; justify-content: space-between;">
+                                <span style="color: #666;">Total Complaints:</span>
+                                <strong id="summaryTotalComplaints" style="color: #333;">0</strong>
+                            </div>
+                            <div style="display: flex; justify-content: space-between;">
+                                <span style="color: #666;">Highest Risk:</span>
+                                <strong id="summaryHighestRisk" style="color: #dc2626;">-</strong>
+                            </div>
+                            <div style="display: flex; justify-content: space-between;">
+                                <span style="color: #666;">Lowest Risk:</span>
+                                <strong id="summaryLowestRisk" style="color: #16a34a;">-</strong>
                             </div>
                         </div>
                     </div>
-
-                    <div id="suggestedQuestions" class="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                        <button class="suggested-btn bg-orange-100 hover:bg-orange-200 text-orange-700 px-3 py-2 rounded-lg text-xs font-medium">
-                            What permits are needed?
-                        </button>
-                        <button class="suggested-btn bg-orange-100 hover:bg-orange-200 text-orange-700 px-3 py-2 rounded-lg text-xs font-medium">
-                            Inspection checklists?
-                        </button>
-                        <button class="suggested-btn bg-orange-100 hover:bg-orange-200 text-orange-700 px-3 py-2 rounded-lg text-xs font-medium">
-                            Which borough has lowest inspection risk?
-                        </button>
-                        <button class="suggested-btn bg-orange-100 hover:bg-orange-200 text-orange-700 px-3 py-2 rounded-lg text-xs font-medium">
-                            Most common violations?
-                        </button>
+                    
+                    <!-- AI Insights -->
+                    <div id="heatmapAIInsights" class="ai-insights-card" style="display: none;">
+                        <h4 style="margin: 0 0 0.5rem 0; font-size: 0.85rem; color: #2563eb;">🤖 AI Insights</h4>
+                        <p id="heatmapAIText" style="margin: 0; color: #333; line-height: 1.5;"></p>
                     </div>
-                </div>
-
-                <div class="bg-white rounded-3xl shadow-2xl p-4 mb-3 input-section">
-                    <div class="flex gap-2">
-                        <input 
-                            type="text" 
-                            id="userInput" 
-                            placeholder="Ask: Where should I open a café with the lowest inspection risk?"
-                            class="flex-1 px-3 py-2.5 border-2 border-gray-300 rounded-lg focus:outline-none text-sm"
-                            style="border-color: #F95039;"
-                        />
-                        <button 
-                            id="sendBtn"
-                            class="text-white px-5 py-2.5 rounded-lg font-medium transition-colors text-sm flex-shrink-0"
-                            style="background-color: #F95039;"
-                            onmouseover="this.style.opacity='0.9'"
-                            onmouseout="this.style.opacity='1'"
-                        >
-                            ▶
-                        </button>
-                    </div>
-                </div>
-
-                <div class="bg-white rounded-3xl shadow-2xl p-4 mb-3 input-section">
-                    <div class="flex flex-col sm:flex-row items-start sm:items-center gap-2">
-                        <label class="text-xs sm:text-sm font-medium text-gray-700">Upload NYC Data (CSV):</label>
-                        <input 
-                            type="file" 
-                            id="csvFile" 
-                            accept=".csv"
-                            class="text-xs file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:bg-orange-100 file:text-orange-700 hover:file:bg-orange-200 file:cursor-pointer"
-                        />
-                        <button 
-                            id="uploadBtn"
-                            class="bg-green-500 hover:bg-green-600 text-white px-3 py-1.5 rounded-lg text-xs font-medium transition-colors w-full sm:w-auto"
-                        >
-                            Upload & Ingest
-                        </button>
-                    </div>
-                    <p id="uploadStatus" class="text-xs text-gray-600 mt-1.5"></p>
                 </div>
             </div>
         </div>
     </div>
 
-    <div id="analyticsModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-        <div class="bg-white rounded-2xl p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div class="flex justify-between items-center mb-4">
-                <h2 class="text-xl font-bold text-gray-800">📊 System Analytics</h2>
-                <button id="closeAnalytics" class="text-gray-500 hover:text-gray-700 text-3xl">&times;</button>
-            </div>
-            <div id="analyticsContent" class="space-y-3 text-sm">
-                <p class="text-gray-600">Loading analytics...</p>
-            </div>
-        </div>
-    </div>
+    <!-- ArcGIS API -->
+    <script src="https://js.arcgis.com/4.28/"></script>
 
     <script>
-        // Sidebar Toggle Functionality
-        const sidebar = document.getElementById('sidebar');
-        const hamburgerBtn = document.getElementById('hamburgerBtn');
-        const closeSidebarBtn = document.getElementById('closeSidebarBtn');
-        const sidebarOverlay = document.getElementById('sidebarOverlay');
-        const mainContent = document.getElementById('mainContent');
-
-        // Load sidebar state from localStorage
-        function loadSidebarState() {
-            const isDesktop = window.innerWidth >= 1024;
-            const savedState = localStorage.getItem('sidebarOpen');
-            
-            if (isDesktop) {
-                // On desktop, default to open unless explicitly closed
-                const shouldBeOpen = savedState !== 'false';
-                if (shouldBeOpen) {
-                    sidebar.classList.remove('closed');
-                    mainContent.classList.remove('sidebar-closed');
-                    sidebarOverlay.classList.add('hidden');
-                } else {
-                    sidebar.classList.add('closed');
-                    mainContent.classList.add('sidebar-closed');
-                    sidebarOverlay.classList.add('hidden');
-                }
-            } else {
-                // On mobile/tablet, default to closed
-                sidebar.classList.add('closed');
-                mainContent.classList.remove('sidebar-closed');
-                sidebarOverlay.classList.add('hidden');
-            }
-        }
-
-        function toggleSidebar() {
-            const isOpen = !sidebar.classList.contains('closed');
-            const isDesktop = window.innerWidth >= 1024;
-            
-            if (isOpen) {
-                sidebar.classList.add('closed');
-                if (isDesktop) {
-                    mainContent.classList.add('sidebar-closed');
-                }
-                if (!isDesktop) {
-                    sidebarOverlay.classList.add('hidden');
-                }
-                localStorage.setItem('sidebarOpen', 'false');
-            } else {
-                sidebar.classList.remove('closed');
-                if (isDesktop) {
-                    mainContent.classList.remove('sidebar-closed');
-                }
-                if (!isDesktop) {
-                    sidebarOverlay.classList.remove('hidden');
-                }
-                localStorage.setItem('sidebarOpen', 'true');
-            }
-        }
-
-        hamburgerBtn.addEventListener('click', toggleSidebar);
-        closeSidebarBtn.addEventListener('click', toggleSidebar);
-        sidebarOverlay.addEventListener('click', toggleSidebar);
-
-        // Handle window resize
-        window.addEventListener('resize', () => {
-            loadSidebarState();
-        });
-
-        // Initialize sidebar state on load
-        loadSidebarState();
-
-        // Original JavaScript
+        // ========== Global Variables ==========
         const chatContainer = document.getElementById('chatContainer');
         const userInput = document.getElementById('userInput');
         const sendBtn = document.getElementById('sendBtn');
         const modelSelector = document.getElementById('modelSelector');
+        const streamToggle = document.getElementById('streamToggle');
         const suggestedBtns = document.querySelectorAll('.suggested-btn');
         const uploadBtn = document.getElementById('uploadBtn');
         const csvFile = document.getElementById('csvFile');
@@ -426,35 +1248,189 @@
         const analyticsContent = document.getElementById('analyticsContent');
         const clearHistoryBtn = document.getElementById('clearHistory');
         const topicBtns = document.querySelectorAll('.topic-btn');
+        const agentFlow = document.getElementById('agentFlow');
+        const agentIndicators = document.getElementById('agentIndicators');
+        const agentStatusList = document.getElementById('agentStatusList');
 
         let questionCount = 0;
+        let totalResponseTime = 0;
 
-        topicBtns.forEach(btn => {
-            btn.addEventListener('click', () => {
-                const topic = btn.textContent.trim().substring(2);
-                userInput.value = `Tell me about ${topic}`;
-                sendMessage();
-                
-                // Close sidebar on mobile after clicking topic
-                if (window.innerWidth < 1024) {
-                    toggleSidebar();
+        // Heatmap variables
+        let heatmapView = null;
+        let heatmapGraphicsLayer = null;
+        let heatmapLabelsLayer = null;
+        let ArcGISGraphic = null;
+
+        // ========== HEATMAP TRIGGER PATTERNS ==========
+        const heatmapTriggerPatterns = [
+            'heatmap', 'heat map', 'show map', 'show me a map', 
+            'risk map', 'complaint map', 'visualize', 'visualization',
+            'where should i open', 'safest neighborhood', 'safest borough',
+            'highest risk', 'lowest risk', 'complaint hotspot', 'hotspot',
+            'map of complaints', 'map of risks', 'show risk', 'show risks',
+            'which area', 'which neighborhood', 'which borough is safest',
+            'dangerous area', 'safe area', 'compare boroughs', 'borough comparison'
+        ];
+
+        function shouldTriggerHeatmap(message) {
+            const lowerMessage = message.toLowerCase();
+            return heatmapTriggerPatterns.some(pattern => lowerMessage.includes(pattern));
+        }
+
+        // ========== Sidebar Toggle Functionality ==========
+        const sidebar = document.getElementById('sidebar');
+        const hamburgerBtn = document.getElementById('hamburgerBtn');
+        const closeSidebarBtn = document.getElementById('closeSidebarBtn');
+        const sidebarOverlay = document.getElementById('sidebarOverlay');
+
+        function openSidebar() {
+            sidebar.classList.remove('closed');
+            document.body.classList.remove('sidebar-closed');
+            sidebarOverlay.classList.add('active');
+            if (window.innerWidth < 1024) {
+                document.body.style.overflow = 'hidden';
+            }
+            localStorage.setItem('sidebarOpen', 'true');
+        }
+
+        function closeSidebar() {
+            sidebar.classList.add('closed');
+            document.body.classList.add('sidebar-closed');
+            sidebarOverlay.classList.remove('active');
+            document.body.style.overflow = '';
+            localStorage.setItem('sidebarOpen', 'false');
+        }
+
+        function toggleSidebar() {
+            if (sidebar.classList.contains('closed')) {
+                openSidebar();
+            } else {
+                closeSidebar();
+            }
+        }
+
+        hamburgerBtn.addEventListener('click', toggleSidebar);
+        closeSidebarBtn.addEventListener('click', closeSidebar);
+        sidebarOverlay.addEventListener('click', closeSidebar);
+
+        function loadSidebarState() {
+            const isDesktop = window.innerWidth >= 1024;
+            const savedState = localStorage.getItem('sidebarOpen');
+            
+            if (isDesktop) {
+                const shouldBeOpen = savedState !== 'false';
+                if (shouldBeOpen) {
+                    openSidebar();
+                    sidebarOverlay.classList.remove('active'); // No overlay on desktop
+                } else {
+                    closeSidebar();
                 }
-            });
-        });
+            } else {
+                closeSidebar();
+            }
+        }
 
-        clearHistoryBtn.addEventListener('click', () => {
-            if (confirm('Are you sure you want to clear the chat history?')) {
-                const messages = chatContainer.querySelectorAll('.message');
-                messages.forEach(msg => msg.remove());
-                questionCount = 0;
-                updateSidebarStats();
+        window.addEventListener('resize', () => {
+            if (window.innerWidth >= 1024) {
+                sidebarOverlay.classList.remove('active');
+                document.body.style.overflow = '';
             }
         });
 
-        function updateSidebarStats() {
-            document.getElementById('sidebarQuestions').textContent = questionCount;
+        loadSidebarState();
+
+        // ========== Toast Notification System ==========
+        function showToast(message, type = 'info') {
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.textContent = message;
+            document.body.appendChild(toast);
+
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.transition = 'opacity 0.3s ease';
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
         }
 
+        // ========== Agent Status Management ==========
+        async function loadAgentStatus() {
+            try {
+                const response = await fetch('/api/agents/status');
+                const data = await response.json();
+
+                if (data.ok && data.agents) {
+                    updateAgentStatusSidebar(data.agents);
+                }
+            } catch (error) {
+                console.error('Failed to load agent status:', error);
+            }
+        }
+
+        function updateAgentStatusSidebar(agents) {
+            agentStatusList.innerHTML = agents.map(agent => `
+                <div class="agent-item">
+                    <span><span class="agent-dot ${agent.status === 'idle' ? 'active' : 'idle'}"></span>${agent.name}</span>
+                    <span>${agent.usage_count || 0}</span>
+                </div>
+            `).join('');
+        }
+
+        function showAgentIndicator(agentName, status = 'active') {
+            const indicator = document.createElement('div');
+            indicator.className = `agent-indicator ${status}`;
+            indicator.id = `agent-${agentName}`;
+            indicator.innerHTML = `<span>●</span><span>${agentName.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}</span>`;
+            agentIndicators.appendChild(indicator);
+            agentFlow.style.display = 'block';
+        }
+
+        function updateAgentIndicator(agentName, status) {
+            const indicator = document.getElementById(`agent-${agentName}`);
+            if (indicator) {
+                indicator.className = `agent-indicator ${status}`;
+            }
+        }
+
+        function clearAgentIndicators() {
+            agentIndicators.innerHTML = '';
+            agentFlow.style.display = 'none';
+        }
+
+        // ========== Stats Update ==========
+        function updateSidebarStats() {
+            document.getElementById('sidebarQuestions').textContent = questionCount;
+            const avgTime = questionCount > 0 ? (totalResponseTime / questionCount).toFixed(1) : 0;
+            document.getElementById('sidebarAvgTime').textContent = avgTime + 's';
+        }
+
+        // ========== Topic Buttons ==========
+        topicBtns.forEach(btn => {
+            if (btn.id !== 'heatmapBtn') {
+                btn.addEventListener('click', () => {
+                    const topic = btn.textContent.trim().substring(2);
+                    userInput.value = `Tell me about ${topic}`;
+                    sendMessage();
+                    
+                    if (window.innerWidth < 1024) {
+                        closeSidebar();
+                    }
+                });
+            }
+        });
+
+        // ========== Clear History ==========
+        clearHistoryBtn.addEventListener('click', () => {
+            if (confirm('Are you sure you want to clear the chat history?')) {
+                chatContainer.innerHTML = '';
+                questionCount = 0;
+                totalResponseTime = 0;
+                updateSidebarStats();
+                showToast('Chat history cleared', 'success');
+            }
+        });
+
+        // ========== Suggested Questions ==========
         suggestedBtns.forEach(btn => {
             btn.addEventListener('click', () => {
                 const question = btn.textContent.trim();
@@ -463,6 +1439,7 @@
             });
         });
 
+        // ========== Send Message ==========
         sendBtn.addEventListener('click', sendMessage);
         userInput.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') sendMessage();
@@ -476,12 +1453,38 @@
             updateSidebarStats();
 
             const selectedModel = modelSelector.value;
-            const modelName = selectedModel === 'gpt-4o-mini' ? 'GPT-4o-mini' : 'Gemma 2B';
+            const modelName = selectedModel === 'gpt-4o-mini' ? 'GPT-4o-mini' : 'Ollama';
+            const useStreaming = streamToggle.checked;
 
             displayMessage(message, 'user');
             userInput.value = '';
 
-            const loadingId = displayMessage(`Thinking (${modelName})<span class="loading-dots"></span>`, 'bot', true);
+            clearAgentIndicators();
+
+            // CHECK IF HEATMAP SHOULD BE TRIGGERED
+            if (shouldTriggerHeatmap(message)) {
+                displayMessage('🗺️ Opening the NYC Restaurant Risk Heatmap for you! This interactive visualization shows complaint density and risk levels across all five boroughs.', 'bot');
+                showToast('Opening Risk Heatmap...', 'info');
+                
+                setTimeout(() => {
+                    openHeatmapModal();
+                }, 500);
+                
+                generateResponse(message, selectedModel, modelName);
+            } else if (useStreaming) {
+                await streamResponse(message, selectedModel);
+            } else {
+                await generateResponse(message, selectedModel, modelName);
+            }
+
+            loadAgentStatus();
+        }
+
+        // ========== Non-Streaming Response ==========
+        async function generateResponse(message, model, modelName) {
+            const loadingId = displayMessage(`🤖 Thinking (${modelName})<span class="loading-dots"></span>`, 'bot', true);
+
+            const startTime = Date.now();
 
             try {
                 const response = await fetch('/api/generate', {
@@ -489,42 +1492,144 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ 
                         prompt: message,
-                        model: selectedModel 
+                        model: model,
+                        stream: false
                     })
                 });
 
                 const data = await response.json();
                 document.getElementById(loadingId)?.remove();
 
+                const executionTime = (Date.now() - startTime) / 1000;
+                totalResponseTime += executionTime;
+                updateSidebarStats();
+
                 if (data.ok) {
-                    displayMessage(data.output, 'bot');
+                    let responseText = data.output;
+                    
+                    if (typeof responseText === 'object' && responseText !== null) {
+                        responseText = responseText.text || responseText.content || JSON.stringify(responseText);
+                    }
+                    
+                    displayMessage(responseText, 'bot');
+                    showToast(`Response generated in ${executionTime.toFixed(1)}s`, 'success');
                 } else {
                     displayMessage('Sorry, something went wrong. Please try again.', 'bot');
+                    showToast('Failed to generate response', 'error');
                 }
             } catch (error) {
                 document.getElementById(loadingId)?.remove();
                 displayMessage('Error connecting to server. Please try again.', 'bot');
+                showToast('Connection error', 'error');
                 console.error('Error:', error);
             }
         }
 
-        function displayMessage(text, sender, isLoading = false) {
+        // ========== Streaming Response ==========
+        async function streamResponse(message, model) {
+            const messageId = displayMessage('', 'bot', false, true);
+            const messageBubble = document.getElementById(messageId).querySelector('.message-content');
+
+            showAgentIndicator('intent_router', 'active');
+
+            try {
+                const response = await fetch('/api/generate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        prompt: message,
+                        model: model,
+                        stream: true
+                    })
+                });
+
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                let buffer = '';
+                let content = '';
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+
+                    buffer += decoder.decode(value, { stream: true });
+                    const lines = buffer.split('\n');
+                    buffer = lines.pop();
+
+                    for (const line of lines) {
+                        if (line.startsWith('data: ')) {
+                            try {
+                                const data = JSON.parse(line.slice(6));
+                                
+                                if (data.type === 'agent') {
+                                    if (data.status === 'active') {
+                                        showAgentIndicator(data.agent.toLowerCase().replace(/ /g, '_'), 'active');
+                                    } else if (data.status === 'complete') {
+                                        updateAgentIndicator(data.agent.toLowerCase().replace(/ /g, '_'), 'complete');
+                                    }
+                                } else if (data.type === 'content') {
+                                    content += data.content;
+                                    messageBubble.innerHTML = formatBotResponse(content);
+                                } else if (data.type === 'done') {
+                                    showToast('Response complete', 'success');
+                                } else if (data.type === 'error') {
+                                    showToast('Error: ' + data.error, 'error');
+                                }
+                            } catch (e) {
+                                console.error('Parse error:', e);
+                            }
+                        }
+                    }
+                }
+
+                chatContainer.scrollTop = chatContainer.scrollHeight;
+            } catch (error) {
+                showToast('Streaming error', 'error');
+                console.error('Streaming error:', error);
+            }
+        }
+
+        // ========== Display Message ==========
+        function displayMessage(text, sender, isLoading = false, isStreaming = false) {
             const messageDiv = document.createElement('div');
             const id = 'msg-' + Date.now();
             messageDiv.id = id;
-            messageDiv.className = `flex ${sender === 'user' ? 'justify-end' : 'justify-start'} message`;
+            messageDiv.className = `message ${sender}`;
 
             const bubble = document.createElement('div');
-            bubble.className = `${sender === 'user' ? 'text-white' : 'bg-gray-100 text-gray-800'} p-3 rounded-xl max-w-2xl text-sm`;
+            bubble.className = 'message-bubble';
+            
+            // EXPLICIT STYLING FOR BOTH USER AND BOT MESSAGES
             if (sender === 'user') {
                 bubble.style.backgroundColor = '#F95039';
+                bubble.style.color = 'white';
+            } else if (sender === 'bot') {
+                // CRITICAL FIX: Explicitly set bot message styling
+                bubble.style.backgroundColor = '#f3f4f6';
+                bubble.style.color = '#333';
             }
             
-            if (sender === 'bot' && !isLoading) {
+            if (sender === 'bot' && !isLoading && !isStreaming) {
                 text = formatBotResponse(text);
+                
+                const copyBtn = document.createElement('button');
+                copyBtn.className = 'copy-btn';
+                copyBtn.textContent = '📋 Copy';
+                copyBtn.onclick = () => {
+                    const tempDiv = document.createElement('div');
+                    tempDiv.innerHTML = text;
+                    navigator.clipboard.writeText(tempDiv.textContent);
+                    copyBtn.textContent = '✅ Copied!';
+                    setTimeout(() => copyBtn.textContent = '📋 Copy', 2000);
+                };
+                bubble.appendChild(copyBtn);
             }
             
-            bubble.innerHTML = text;
+            const content = document.createElement('div');
+            content.className = 'message-content';
+            content.innerHTML = text;
+            bubble.appendChild(content);
+            
             messageDiv.appendChild(bubble);
             chatContainer.appendChild(messageDiv);
             chatContainer.scrollTop = chatContainer.scrollHeight;
@@ -532,20 +1637,40 @@
             return id;
         }
 
+        // ========== Format Bot Response ==========
         function formatBotResponse(text) {
+            if (typeof text !== 'string') {
+                text = String(text);
+            }
+            
+            // Headers
+            text = text.replace(/^#{1,4}\s+(.+)$/gm, '<div style="font-weight: 600; color: #F95039; margin: 0.8em 0 0.4em 0; font-size: 1em;">$1</div>');
+            // Bold
             text = text.replace(/\*\*(.+?)\*\*/g, '<strong style="color: #F95039;">$1</strong>');
-            text = text.replace(/^[\-\•\*]\s+(.+)$/gm, '<div style="margin-left: 1em; margin-bottom: 0.5em;">• $1</div>');
-            text = text.replace(/^(.+?:)$/gm, '<div style="font-weight: 600; color: #F95039; margin-top: 1em; margin-bottom: 0.5em;">$1</div>');
+            // Bullet points
+            text = text.replace(/^[\-\•\*]\s+(.+)$/gm, '<div style="margin: 0.3em 0 0.3em 0.8em; padding-left: 0.6em; border-left: 2px solid #F95039;">$1</div>');
+            // Numbered lists
+            text = text.replace(/^(\d+)\.\s+(.+)$/gm, '<div style="margin: 0.3em 0 0.3em 0.8em;"><span style="color: #F95039; font-weight: 600;">$1.</span> $2</div>');
+            // Pro tips
+            text = text.replace(/💡\s*Pro Tip:?\s*(.+?)(?=\n\n|$)/gs, '<div class="pro-tip">💡 <strong>Pro Tip:</strong> $1</div>');
+            // Source citations
+            text = text.replace(/\[Source\s*(\d+)\]/g, '<span class="source-citation">[Source $1]</span>');
+            // Source legend
+            text = text.replace(/---\n📚 Sources:/g, '<div class="source-legend">📚 <strong>Sources:</strong></div>');
+            // Line breaks
             text = text.replace(/\n\n/g, '<br><br>');
             text = text.replace(/\n/g, '<br>');
+            
             return text;
         }
 
+        // ========== CSV Upload ==========
         uploadBtn.addEventListener('click', async () => {
             const file = csvFile.files[0];
             if (!file) {
+                showToast('Please select a CSV file first', 'warning');
                 uploadStatus.textContent = '⚠️ Please select a CSV file first.';
-                uploadStatus.className = 'text-xs text-red-600 mt-1.5';
+                uploadStatus.style.color = '#dc2626';
                 return;
             }
 
@@ -553,7 +1678,7 @@
             formData.append('file', file);
 
             uploadStatus.textContent = '⏳ Uploading and processing...';
-            uploadStatus.className = 'text-xs text-blue-600 mt-1.5';
+            uploadStatus.style.color = '#3b82f6';
 
             try {
                 const response = await fetch('/api/ingest_csv', {
@@ -565,71 +1690,499 @@
 
                 if (data.ok) {
                     uploadStatus.textContent = `✅ Success! Ingested ${data.rows_ingested || 0} rows. Vector store has ${data.total_chunks || 0} chunks.`;
-                    uploadStatus.className = 'text-xs text-green-600 mt-1.5';
+                    uploadStatus.style.color = '#16a34a';
                     document.getElementById('sidebarDocs').textContent = data.total_chunks || 0;
+                    showToast(`Successfully ingested ${data.rows_ingested} rows`, 'success');
                 } else {
                     uploadStatus.textContent = '❌ Upload failed. Please try again.';
-                    uploadStatus.className = 'text-xs text-red-600 mt-1.5';
+                    uploadStatus.style.color = '#dc2626';
+                    showToast('Upload failed', 'error');
                 }
             } catch (error) {
                 uploadStatus.textContent = '❌ Error uploading file.';
-                uploadStatus.className = 'text-xs text-red-600 mt-1.5';
+                uploadStatus.style.color = '#dc2626';
+                showToast('Upload error', 'error');
                 console.error('Upload error:', error);
             }
         });
 
+        // ========== Analytics Modal ==========
         showAnalyticsBtn.addEventListener('click', async () => {
-            analyticsModal.classList.remove('hidden');
-            analyticsContent.innerHTML = '<p class="text-gray-600">Loading analytics...</p>';
+            analyticsModal.classList.add('active');
+            analyticsContent.innerHTML = '<p style="color: #666;">Loading analytics...</p>';
 
             try {
-                const response = await fetch('/api/stats');
+                const response = await fetch('/api/analytics/overview');
                 const data = await response.json();
 
                 if (data.ok) {
                     const currentModel = modelSelector.options[modelSelector.selectedIndex].text;
+                    
+                    let agentUsageHTML = '<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem;">';
+                    if (data.overview.agent_usage && Object.keys(data.overview.agent_usage).length > 0) {
+                        for (const [agent, count] of Object.entries(data.overview.agent_usage)) {
+                            agentUsageHTML += `
+                                <div style="background: #f3e8ff; padding: 0.5rem; border-radius: 0.5rem; text-align: center;">
+                                    <p style="margin: 0; font-size: 0.7rem; color: #7c3aed; font-weight: 500;">${agent.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}</p>
+                                    <p style="margin: 0; font-size: 1.25rem; font-weight: bold; color: #7c3aed;">${count}</p>
+                                </div>
+                            `;
+                        }
+                    } else {
+                        agentUsageHTML += '<p style="grid-column: span 2; color: #666; text-align: center;">No agent usage data yet</p>';
+                    }
+                    agentUsageHTML += '</div>';
+
                     analyticsContent.innerHTML = `
-                        <div class="bg-blue-50 p-3 rounded-lg">
-                            <p class="font-semibold text-blue-900">Total Chunks in Vector Store:</p>
-                            <p class="text-xl font-bold text-blue-600">${data.total_chunks || 0}</p>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 1rem;">
+                            <div style="background: #eff6ff; padding: 0.75rem; border-radius: 0.5rem;">
+                                <p style="margin: 0; font-size: 0.75rem; color: #1e40af; font-weight: 500;">Total Chunks in Vector Store</p>
+                                <p style="margin: 0; font-size: 1.5rem; font-weight: bold; color: #3b82f6;">${data.overview.total_chunks || 0}</p>
+                            </div>
+                            <div style="background: #f0fdf4; padding: 0.75rem; border-radius: 0.5rem;">
+                                <p style="margin: 0; font-size: 0.75rem; color: #166534; font-weight: 500;">Total Queries Processed</p>
+                                <p style="margin: 0; font-size: 1.5rem; font-weight: bold; color: #22c55e;">${data.overview.total_queries || 0}</p>
+                            </div>
+                            <div style="background: #fff7ed; padding: 0.75rem; border-radius: 0.5rem;">
+                                <p style="margin: 0; font-size: 0.75rem; color: #9a3412; font-weight: 500;">Avg Execution Time</p>
+                                <p style="margin: 0; font-size: 1.5rem; font-weight: bold; color: #f97316;">${data.overview.avg_execution_time || 0}s</p>
+                            </div>
+                            <div style="background: #faf5ff; padding: 0.75rem; border-radius: 0.5rem;">
+                                <p style="margin: 0; font-size: 0.75rem; color: #6b21a8; font-weight: 500;">Current Model</p>
+                                <p style="margin: 0; font-size: 1rem; font-weight: 600; color: #9333ea;">${currentModel}</p>
+                            </div>
                         </div>
-                        <div class="bg-purple-50 p-3 rounded-lg">
-                            <p class="font-semibold text-purple-900">Current Model:</p>
-                            <p class="text-purple-600">${currentModel}</p>
+                        
+                        <div style="background: #faf5ff; padding: 1rem; border-radius: 0.5rem; margin-bottom: 1rem;">
+                            <p style="margin: 0 0 0.75rem 0; font-weight: 600; color: #6b21a8;">Agent Usage Statistics</p>
+                            ${agentUsageHTML}
                         </div>
-                        <div class="bg-orange-50 p-3 rounded-lg">
-                            <p class="font-semibold text-orange-900">Questions Asked:</p>
-                            <p class="text-orange-600">${questionCount}</p>
-                        </div>
-                        <div class="bg-green-50 p-3 rounded-lg">
-                            <p class="font-semibold text-green-900">Status:</p>
-                            <p class="text-green-600">${data.total_chunks > 0 ? '✅ System ready with data' : '⚠️ No data ingested yet'}</p>
-                        </div>
-                        <div class="bg-gray-50 p-3 rounded-lg">
-                            <p class="text-gray-700"><strong>Tip:</strong> Upload NYC restaurant inspection data to get better insights!</p>
+
+                        <div style="background: #f8fafc; padding: 0.75rem; border-radius: 0.5rem;">
+                            <p style="margin: 0; color: #475569;"><strong>System Status:</strong> ${data.overview.total_chunks > 0 ? '✅ Operational with data' : '⚠️ No data ingested yet'}</p>
+                            <p style="margin: 0.5rem 0 0 0; color: #64748b; font-size: 0.85rem;"><strong>Tip:</strong> Upload NYC restaurant inspection data (CSV) to enhance insights!</p>
                         </div>
                     `;
-                    document.getElementById('sidebarDocs').textContent = data.total_chunks || 0;
+                    
+                    document.getElementById('sidebarDocs').textContent = data.overview.total_chunks || 0;
                 } else {
-                    analyticsContent.innerHTML = '<p class="text-red-600">Failed to load analytics.</p>';
+                    analyticsContent.innerHTML = '<p style="color: #dc2626;">Failed to load analytics.</p>';
                 }
             } catch (error) {
-                analyticsContent.innerHTML = '<p class="text-red-600">Error loading analytics.</p>';
+                analyticsContent.innerHTML = '<p style="color: #dc2626;">Error loading analytics.</p>';
                 console.error('Analytics error:', error);
             }
         });
 
         closeAnalyticsBtn.addEventListener('click', () => {
-            analyticsModal.classList.add('hidden');
+            analyticsModal.classList.remove('active');
         });
 
         analyticsModal.addEventListener('click', (e) => {
             if (e.target === analyticsModal) {
-                analyticsModal.classList.add('hidden');
+                analyticsModal.classList.remove('active');
             }
         });
 
+        // ========== Heatmap Functions ==========
+        const heatmapModal = document.getElementById('heatmapModal');
+        const heatmapBtn = document.getElementById('heatmapBtn');
+        const closeHeatmapBtn = document.getElementById('closeHeatmapModal');
+        const applyHeatmapFiltersBtn = document.getElementById('applyHeatmapFilters');
+        const resetHeatmapFiltersBtn = document.getElementById('resetHeatmapFilters');
+        const heatmapBoroughFilter = document.getElementById('heatmapBoroughFilter');
+
+        function openHeatmapModal() {
+            heatmapModal.classList.add('active');
+            if (window.innerWidth < 1024) {
+                closeSidebar();
+            }
+            setTimeout(() => {
+                initHeatmap();
+            }, 100);
+        }
+
+        heatmapBtn.addEventListener('click', openHeatmapModal);
+
+        closeHeatmapBtn.addEventListener('click', () => {
+            heatmapModal.classList.remove('active');
+        });
+
+        heatmapModal.addEventListener('click', (e) => {
+            if (e.target === heatmapModal) {
+                heatmapModal.classList.remove('active');
+            }
+        });
+
+        // Initialize ArcGIS Heatmap
+        function initHeatmap() {
+            if (heatmapView) {
+                loadHeatmapData();
+                loadBoroughStats();
+                return;
+            }
+
+            require([
+                "esri/Map",
+                "esri/views/MapView",
+                "esri/layers/GraphicsLayer",
+                "esri/Graphic"
+            ], function(Map, MapView, GraphicsLayer, Graphic) {
+                
+                // Store Graphic class globally for autocasting
+                window.ArcGISGraphic = Graphic;
+                
+                const map = new Map({
+                    basemap: "gray-vector"
+                });
+
+                heatmapGraphicsLayer = new GraphicsLayer();
+                heatmapLabelsLayer = new GraphicsLayer();
+                map.add(heatmapGraphicsLayer);
+                map.add(heatmapLabelsLayer);
+
+                heatmapView = new MapView({
+                    container: "heatmapViewDiv",
+                    map: map,
+                    center: [-74.0060, 40.7128],
+                    zoom: 10,
+                    ui: {
+                        components: ["zoom", "compass"]
+                    }
+                });
+
+                heatmapView.when(() => {
+                    console.log("✅ ArcGIS Map initialized successfully");
+                    loadHeatmapData();
+                    loadBoroughStats();
+                });
+            });
+        }
+
+        // Load heatmap data from API with fallback
+        async function loadHeatmapData(borough = '') {
+            // FALLBACK SAMPLE DATA - Used if API fails
+            const sampleData = {
+                ok: true,
+                features: [
+                    {
+                        type: "Feature",
+                        geometry: { type: "Point", coordinates: [-73.9712, 40.7831] },
+                        properties: { borough: "Manhattan", complaint_count: 245, risk_score: 72, risk_level: "High" }
+                    },
+                    {
+                        type: "Feature",
+                        geometry: { type: "Point", coordinates: [-73.9442, 40.6782] },
+                        properties: { borough: "Brooklyn", complaint_count: 312, risk_score: 78, risk_level: "High" }
+                    },
+                    {
+                        type: "Feature",
+                        geometry: { type: "Point", coordinates: [-73.7949, 40.7282] },
+                        properties: { borough: "Queens", complaint_count: 189, risk_score: 65, risk_level: "Medium" }
+                    },
+                    {
+                        type: "Feature",
+                        geometry: { type: "Point", coordinates: [-73.8648, 40.8448] },
+                        properties: { borough: "Bronx", complaint_count: 156, risk_score: 61, risk_level: "Medium" }
+                    },
+                    {
+                        type: "Feature",
+                        geometry: { type: "Point", coordinates: [-74.1502, 40.5795] },
+                        properties: { borough: "Staten Island", complaint_count: 67, risk_score: 42, risk_level: "Low" }
+                    }
+                ],
+                summary: {
+                    total_complaints: 969,
+                    highest_risk: "Brooklyn",
+                    lowest_risk: "Staten Island"
+                }
+            };
+
+            try {
+                let url = '/api/heatmap/data';
+                if (borough) {
+                    url += `?borough=${encodeURIComponent(borough)}`;
+                }
+
+                console.log("📡 Fetching heatmap data from:", url);
+                const response = await fetch(url);
+                const data = await response.json();
+                
+                console.log("📊 Heatmap API response:", data);
+
+                if (data.ok && data.features && data.features.length > 0) {
+                    // Filter by borough if specified
+                    let features = data.features;
+                    if (borough) {
+                        features = features.filter(f => 
+                            f.properties.borough.toLowerCase() === borough.toLowerCase()
+                        );
+                    }
+                    addMarkersToMap(features);
+                    if (data.summary) {
+                        updateHeatmapSummary(data.summary);
+                    }
+                    showToast(`Loaded ${features.length} borough markers`, 'success');
+                } else {
+                    console.warn("API returned no data, using fallback sample data");
+                    let features = sampleData.features;
+                    if (borough) {
+                        features = features.filter(f => 
+                            f.properties.borough.toLowerCase() === borough.toLowerCase()
+                        );
+                    }
+                    addMarkersToMap(features);
+                    updateHeatmapSummary(sampleData.summary);
+                    showToast(`Loaded ${features.length} sample markers`, 'info');
+                }
+            } catch (error) {
+                console.error('API failed, using fallback sample data:', error);
+                let features = sampleData.features;
+                if (borough) {
+                    features = features.filter(f => 
+                        f.properties.borough.toLowerCase() === borough.toLowerCase()
+                    );
+                }
+                addMarkersToMap(features);
+                updateHeatmapSummary(sampleData.summary);
+                showToast('Using sample data', 'info');
+            }
+        }
+
+        // Add markers to map using autocasting (simpler and more reliable)
+        function addMarkersToMap(features) {
+            if (!heatmapGraphicsLayer || !heatmapLabelsLayer || !window.ArcGISGraphic) {
+                console.error("ArcGIS not initialized yet, retrying in 500ms...");
+                setTimeout(() => addMarkersToMap(features), 500);
+                return;
+            }
+
+            console.log("🎯 Adding", features.length, "markers to map");
+            
+            heatmapGraphicsLayer.removeAll();
+            heatmapLabelsLayer.removeAll();
+
+            features.forEach(feature => {
+                const props = feature.properties;
+                const coords = feature.geometry.coordinates;
+                
+                console.log("✓ Adding:", props.borough, "at", coords);
+                
+                // Determine color based on risk score
+                let color, outlineColor;
+                if (props.risk_score >= 70) {
+                    color = [239, 68, 68, 0.85];  // Red
+                    outlineColor = [185, 28, 28, 1];
+                } else if (props.risk_score >= 40) {
+                    color = [251, 191, 36, 0.85];  // Amber/Yellow
+                    outlineColor = [217, 119, 6, 1];
+                } else {
+                    color = [74, 222, 128, 0.85];  // Green
+                    outlineColor = [22, 163, 74, 1];
+                }
+
+                // Calculate size based on complaint count
+                const baseSize = 45;
+                const size = Math.min(80, Math.max(baseSize, props.complaint_count / 3));
+
+                // Create marker graphic using AUTOCASTING (simpler, more reliable)
+                const markerGraphic = new window.ArcGISGraphic({
+                    geometry: {
+                        type: "point",
+                        longitude: coords[0],
+                        latitude: coords[1]
+                    },
+                    symbol: {
+                        type: "simple-marker",
+                        color: color,
+                        outline: {
+                            color: outlineColor,
+                            width: 3
+                        },
+                        size: size
+                    },
+                    attributes: props,
+                    popupTemplate: {
+                        title: "<b>{borough}</b>",
+                        content: `
+                            <div style="padding: 10px;">
+                                <p><b>📊 Complaints:</b> {complaint_count}</p>
+                                <p><b>⚠️ Risk Score:</b> {risk_score}/100</p>
+                                <p><b>🎯 Risk Level:</b> {risk_level}</p>
+                            </div>
+                        `
+                    }
+                });
+
+                heatmapGraphicsLayer.add(markerGraphic);
+
+                // Create label graphic using AUTOCASTING
+                const labelGraphic = new window.ArcGISGraphic({
+                    geometry: {
+                        type: "point",
+                        longitude: coords[0],
+                        latitude: coords[1]
+                    },
+                    symbol: {
+                        type: "text",
+                        color: "white",
+                        haloColor: [0, 0, 0, 0.9],
+                        haloSize: "2px",
+                        text: `${props.borough}\n${props.complaint_count}`,
+                        font: {
+                            size: 11,
+                            family: "Arial, sans-serif",
+                            weight: "bold"
+                        }
+                    }
+                });
+
+                heatmapLabelsLayer.add(labelGraphic);
+            });
+            
+            console.log("✅ Added", heatmapGraphicsLayer.graphics.length, "markers to map");
+        }
+
+        // Load borough statistics
+        async function loadBoroughStats() {
+            try {
+                const response = await fetch('/api/heatmap/boroughs');
+                const data = await response.json();
+
+                if (data.ok && data.boroughs) {
+                    const container = document.getElementById('boroughStatsContainer');
+                    container.innerHTML = data.boroughs.map(borough => `
+                        <div class="borough-card" onclick="zoomToBorough('${borough.name}', ${borough.lat}, ${borough.lng})">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.3rem;">
+                                <span style="font-weight: 600; color: #333;">${borough.name}</span>
+                                <span style="font-size: 0.65rem; padding: 0.2rem 0.5rem; border-radius: 1rem; font-weight: 600; ${
+                                    borough.risk_level === 'High' ? 'background: #fee2e2; color: #dc2626;' : 
+                                    borough.risk_level === 'Medium' ? 'background: #fef3c7; color: #d97706;' : 
+                                    'background: #dcfce7; color: #16a34a;'
+                                }">${borough.risk_level}</span>
+                            </div>
+                            <div style="font-size: 0.75rem; color: #666; margin-bottom: 0.3rem;">${borough.complaint_count} complaints</div>
+                            <div class="risk-bar-container">
+                                <div class="risk-bar" style="width: ${borough.risk_score}%; background: ${
+                                    borough.risk_level === 'High' ? 'linear-gradient(90deg, #ef4444, #dc2626)' : 
+                                    borough.risk_level === 'Medium' ? 'linear-gradient(90deg, #fbbf24, #f59e0b)' : 
+                                    'linear-gradient(90deg, #4ade80, #22c55e)'
+                                };"></div>
+                            </div>
+                        </div>
+                    `).join('');
+
+                    const totalComplaints = data.boroughs.reduce((sum, b) => sum + b.complaint_count, 0);
+                    const highestRisk = data.boroughs.reduce((a, b) => a.risk_score > b.risk_score ? a : b);
+                    const lowestRisk = data.boroughs.reduce((a, b) => a.risk_score < b.risk_score ? a : b);
+
+                    document.getElementById('summaryTotalComplaints').textContent = totalComplaints.toLocaleString();
+                    document.getElementById('summaryHighestRisk').textContent = highestRisk.name;
+                    document.getElementById('summaryLowestRisk').textContent = lowestRisk.name;
+                }
+            } catch (error) {
+                console.error('Failed to load borough stats:', error);
+            }
+        }
+
+        function updateHeatmapSummary(summary) {
+            if (summary.total_complaints !== undefined) {
+                document.getElementById('summaryTotalComplaints').textContent = summary.total_complaints.toLocaleString();
+            }
+        }
+
+        function zoomToBorough(name, lat, lng) {
+            if (heatmapView) {
+                heatmapView.goTo({
+                    center: [lng, lat],
+                    zoom: 12
+                }, { duration: 1000, easing: "ease-in-out" });
+            }
+
+            document.querySelectorAll('.borough-card').forEach(card => {
+                card.classList.remove('selected');
+                if (card.textContent.includes(name)) {
+                    card.classList.add('selected');
+                }
+            });
+
+            loadBoroughAnalysis(name);
+        }
+
+        async function loadBoroughAnalysis(borough) {
+            const insightsDiv = document.getElementById('heatmapAIInsights');
+            const textDiv = document.getElementById('heatmapAIText');
+            
+            insightsDiv.style.display = 'block';
+            textDiv.innerHTML = '<span style="color: #9ca3af;">Loading AI analysis...</span>';
+
+            try {
+                const response = await fetch('/api/heatmap/analyze', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        query: `Analyze restaurant risks in ${borough}`,
+                        borough: borough 
+                    })
+                });
+
+                const data = await response.json();
+                
+                if (data.ok && data.analysis) {
+                    let analysis = data.analysis;
+                    if (analysis.length > 350) {
+                        analysis = analysis.substring(0, 350) + '...';
+                    }
+                    textDiv.textContent = analysis;
+                } else {
+                    textDiv.textContent = 'Unable to load analysis for this borough.';
+                }
+            } catch (error) {
+                console.error('Failed to load analysis:', error);
+                textDiv.textContent = 'Error loading AI analysis.';
+            }
+        }
+
+        applyHeatmapFiltersBtn.addEventListener('click', () => {
+            const borough = heatmapBoroughFilter.value;
+            loadHeatmapData(borough);
+            
+            if (borough && heatmapView) {
+                const coords = {
+                    'Manhattan': [-73.9712, 40.7831],
+                    'Brooklyn': [-73.9442, 40.6782],
+                    'Queens': [-73.7949, 40.7282],
+                    'Bronx': [-73.8648, 40.8448],
+                    'Staten Island': [-74.1502, 40.5795]
+                };
+                if (coords[borough]) {
+                    heatmapView.goTo({
+                        center: coords[borough],
+                        zoom: 12
+                    }, { duration: 800 });
+                }
+            }
+        });
+
+        resetHeatmapFiltersBtn.addEventListener('click', () => {
+            heatmapBoroughFilter.value = '';
+            loadHeatmapData();
+            if (heatmapView) {
+                heatmapView.goTo({
+                    center: [-74.0060, 40.7128],
+                    zoom: 10
+                }, { duration: 800 });
+            }
+            document.querySelectorAll('.borough-card').forEach(card => {
+                card.classList.remove('selected');
+            });
+            document.getElementById('heatmapAIInsights').style.display = 'none';
+        });
+
+        // ========== Initialize ==========
         updateSidebarStats();
+        loadAgentStatus();
+        setInterval(loadAgentStatus, 10000);
     </script>
 </body>
 </html>

@@ -4,6 +4,7 @@ Supports multi-agent tracking, streaming responses, and detailed execution flow
 """
 
 import os
+import re
 import time
 from typing import Dict, List, Optional, Any
 from openai import OpenAI
@@ -59,8 +60,19 @@ class Orchestrator:
             for agent_name in selected_agents:
                 self.agent_usage_count[agent_name] = self.agent_usage_count.get(agent_name, 0) + 1
             
-            # Step 2: Retrieve relevant context from vector store
-            context_docs = self.vector_store.search(prompt, k=5)
+            # Step 2: Retrieve relevant context from vector store with metadata
+            context_docs = self.vector_store.search(prompt, k=8)
+            
+            # Extract context with source tracking
+            context_with_sources = []
+            for i, doc in enumerate(context_docs):
+                source_info = {
+                    'id': i + 1,
+                    'content': doc.page_content,
+                    'metadata': getattr(doc, 'metadata', {})
+                }
+                context_with_sources.append(source_info)
+            
             context = "\n\n".join([doc.page_content for doc in context_docs])
             
             # Step 3: Execute agents based on routing plan
@@ -82,17 +94,26 @@ class Orchestrator:
                             'status': 'error'
                         })
             
-            # Step 4: Synthesize final response
-            final_response = self._synthesize_responses(prompt, agent_responses, context)
+            # Step 4: Synthesize final response with improved formatting
+            final_response = self._synthesize_responses(
+                prompt, 
+                agent_responses, 
+                context_with_sources,
+                model
+            )
             
-            # Step 5: Track execution
+            # Step 5: Clean up the output
+            final_response = self._clean_output(final_response)
+            
+            # Step 6: Track execution
             execution_time = time.time() - start_time
             self.execution_history.append({
                 'prompt': prompt,
                 'agents_used': selected_agents,
                 'execution_time': execution_time,
                 'timestamp': time.time(),
-                'model': model
+                'model': model,
+                'sources_used': len(context_docs)
             })
             
             return final_response
@@ -100,53 +121,117 @@ class Orchestrator:
         except Exception as e:
             return f"Error processing request: {str(e)}"
     
-    def _synthesize_responses(self, prompt: str, agent_responses: List[Dict], context: str) -> str:
+    def _clean_output(self, text: str) -> str:
+        """Clean up AI output for better display"""
+        # Remove markdown headers (##, ###)
+        text = re.sub(r'^#{1,3}\s+', '', text, flags=re.MULTILINE)
+        
+        # Remove ** around section titles that are on their own line
+        text = re.sub(r'^\*\*([^*]+)\*\*$', r'\1', text, flags=re.MULTILINE)
+        
+        # Limit consecutive newlines
+        text = re.sub(r'\n{3,}', '\n\n', text)
+        
+        # Remove excessive dashes/separators
+        text = re.sub(r'^-{3,}$', '', text, flags=re.MULTILINE)
+        
+        # Trim whitespace
+        text = text.strip()
+        
+        return text
+    
+    def _synthesize_responses(
+        self, 
+        prompt: str, 
+        agent_responses: List[Dict], 
+        context_sources: List[Dict],
+        model: str = "gpt-4o-mini"
+    ) -> str:
         """
-        Synthesize multiple agent responses into a coherent answer
+        Synthesize multiple agent responses into a coherent, well-structured answer
         """
         if not agent_responses:
             return "No agent responses available."
         
-        # If only one agent, return its response directly
+        # If only one agent, clean and return its response
         if len(agent_responses) == 1:
-            return agent_responses[0]['response']
+            return self._clean_output(agent_responses[0]['response'])
         
-        # Combine multiple agent responses
-        synthesis_prompt = f"""
-You are synthesizing insights from multiple specialized agents to answer this question:
-
-**User Question:** {prompt}
-
-**Agent Responses:**
-"""
-        for i, agent_resp in enumerate(agent_responses, 1):
+        # Build context summary
+        context_summary = ""
+        for source in context_sources[:5]:
+            metadata = source.get('metadata', {})
+            borough = metadata.get('borough', 'NYC')
+            complaint_type = metadata.get('complaint_type', 'General')
+            context_summary += f"• {borough}: {complaint_type} - {source['content'][:150]}...\n"
+        
+        # Collect agent insights
+        agent_insights = ""
+        for agent_resp in agent_responses:
             agent_name = agent_resp['agent'].replace('_', ' ').title()
-            synthesis_prompt += f"\n{i}. **{agent_name}:**\n{agent_resp['response']}\n"
+            # Truncate long responses
+            response_text = agent_resp['response'][:800] if len(agent_resp['response']) > 800 else agent_resp['response']
+            agent_insights += f"{agent_name}:\n{response_text}\n\n"
         
-        synthesis_prompt += """
-**Context from NYC Data:**
-""" + context[:1000] + """
+        # Concise synthesis prompt
+        synthesis_prompt = f"""You are Kitchen Compass AI - a friendly NYC restaurant consultant.
 
-Please synthesize these responses into a comprehensive, well-structured answer. 
-Include relevant details from each agent's perspective, and cite specific data points when available.
-Format your response with clear sections using markdown.
-"""
-        
+USER QUESTION: {prompt}
+
+AGENT INSIGHTS:
+{agent_insights}
+
+DATA CONTEXT:
+{context_summary}
+
+RESPOND WITH:
+1. A direct 2-3 sentence answer first
+2. 3-5 key bullet points with specific data (numbers, boroughs, percentages)
+3. One practical "Pro Tip" at the end
+
+RULES:
+- NO headers or titles (no ##, ###, **)
+- NO "Executive Summary" or "Key Findings" labels
+- Keep total response under 250 words
+- Be conversational, not formal
+- Use bullet points (•) sparingly
+- Include specific data when available
+- End with: 💡 Pro Tip: [actionable advice]
+
+Write your response now:"""
+
         try:
             response = self.openai_client.chat.completions.create(
-                model="gpt-4o-mini",
+                model=model,
                 messages=[
-                    {"role": "system", "content": "You are a helpful assistant that synthesizes information from multiple sources."},
+                    {
+                        "role": "system", 
+                        "content": "You are a helpful NYC restaurant consultant. Give concise, practical advice. Never use markdown headers. Be conversational."
+                    },
                     {"role": "user", "content": synthesis_prompt}
                 ],
                 temperature=0.7,
-                max_tokens=1500
+                max_tokens=600
             )
             return response.choices[0].message.content
         except Exception as e:
             # Fallback to simple concatenation
-            combined = "\n\n---\n\n".join([f"**{r['agent'].replace('_', ' ').title()}:**\n{r['response']}" for r in agent_responses])
+            combined = "\n\n".join([
+                f"{r['agent'].replace('_', ' ').title()}: {r['response'][:300]}..." 
+                for r in agent_responses
+            ])
             return combined
+    
+    def route_query(self, prompt: str) -> List[str]:
+        """
+        Route query and return list of agent names that will be used
+        Useful for streaming UI updates
+        """
+        try:
+            routing_result = self.intent_router.route(prompt)
+            return routing_result.get('agents', ['compliance_guide'])
+        except Exception:
+            return ['compliance_guide']
     
     def get_agent_status(self) -> Dict[str, Any]:
         """
@@ -158,37 +243,43 @@ Format your response with clear sections using markdown.
                     'name': 'Intent Router',
                     'id': 'intent_router',
                     'status': 'idle',
-                    'usage_count': self.agent_usage_count.get('intent_router', 0)
+                    'usage_count': self.agent_usage_count.get('intent_router', 0),
+                    'description': 'Routes queries to appropriate specialist agents'
                 },
                 {
                     'name': 'Complaint Analyzer',
                     'id': 'complaint_analyzer',
                     'status': 'idle',
-                    'usage_count': self.agent_usage_count.get('complaint_analyzer', 0)
+                    'usage_count': self.agent_usage_count.get('complaint_analyzer', 0),
+                    'description': 'Analyzes NYC 311 complaint patterns'
                 },
                 {
                     'name': 'Compliance Guide',
                     'id': 'compliance_guide',
                     'status': 'idle',
-                    'usage_count': self.agent_usage_count.get('compliance_guide', 0)
+                    'usage_count': self.agent_usage_count.get('compliance_guide', 0),
+                    'description': 'Health code & permit guidance'
                 },
                 {
                     'name': 'Location Risk',
                     'id': 'location_risk',
                     'status': 'idle',
-                    'usage_count': self.agent_usage_count.get('location_risk', 0)
+                    'usage_count': self.agent_usage_count.get('location_risk', 0),
+                    'description': 'Neighborhood risk assessment'
                 },
                 {
                     'name': 'Strategic Advisor',
                     'id': 'strategic_advisor',
                     'status': 'idle',
-                    'usage_count': self.agent_usage_count.get('strategic_advisor', 0)
+                    'usage_count': self.agent_usage_count.get('strategic_advisor', 0),
+                    'description': 'Business strategy insights'
                 },
                 {
                     'name': 'Violation Prevention',
                     'id': 'violation_prevention',
                     'status': 'idle',
-                    'usage_count': self.agent_usage_count.get('violation_prevention', 0)
+                    'usage_count': self.agent_usage_count.get('violation_prevention', 0),
+                    'description': 'Proactive violation prevention'
                 }
             ],
             'total_executions': len(self.execution_history)
@@ -204,10 +295,16 @@ Format your response with clear sections using markdown.
         if self.execution_history:
             avg_execution_time = sum(e['execution_time'] for e in self.execution_history) / len(self.execution_history)
         
+        # Calculate most used agents
+        most_used_agent = None
+        if self.agent_usage_count:
+            most_used_agent = max(self.agent_usage_count, key=self.agent_usage_count.get)
+        
         return {
             'total_chunks': total_chunks,
             'total_queries': len(self.execution_history),
             'agent_usage': self.agent_usage_count,
+            'most_used_agent': most_used_agent,
             'avg_execution_time': round(avg_execution_time, 2),
             'recent_executions': self.execution_history[-10:] if self.execution_history else []
         }
@@ -238,7 +335,6 @@ Format your response with clear sections using markdown.
         gpt_response = self.generate_with_context(prompt, model="gpt-4o-mini")
         
         # For Ollama, you'd call your ollama_client here
-        # ollama_response = self.ollama_client.generate(prompt)
         ollama_response = "Ollama integration coming soon..."
         
         return {
