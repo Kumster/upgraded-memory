@@ -1,343 +1,414 @@
 """
-Enhanced Orchestrator for Kitchen Compass AI
-Supports multi-agent tracking, streaming responses, and detailed execution flow
+FIXED Orchestrator - Properly initializes vector store and routes queries
 """
-
+import requests
+import pandas as pd
+from typing import Dict, Optional
 import os
-import re
-import time
-from typing import Dict, List, Optional, Any
 from openai import OpenAI
-from backend.vector_store import VectorStore
-from backend.agents.intent_router_agent import IntentRouterAgent
-from backend.agents.complaint_analyzer_agent import ComplaintAnalyzerAgent
-from backend.agents.compliance_guide_agent import ComplianceGuideAgent
-from backend.agents.location_risk_agent import LocationRiskAgent
-from backend.agents.strategic_advisor_agent import StrategicAdvisorAgent
-from backend.agents.violation_prevention_agent import ViolationPreventionAgent
+
 
 class Orchestrator:
     def __init__(self):
-        self.openai_client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
-        self.vector_store = VectorStore(csv_path="data/erm2-nwe9.csv")
+        from dotenv import load_dotenv
+        load_dotenv()
         
-        # Initialize all agents
-        self.intent_router = IntentRouterAgent(self.openai_client)
-        self.complaint_analyzer = ComplaintAnalyzerAgent(self.openai_client, self.vector_store)
-        self.compliance_guide = ComplianceGuideAgent(self.openai_client, self.vector_store)
-        self.location_risk = LocationRiskAgent(self.openai_client, self.vector_store)
-        self.strategic_advisor = StrategicAdvisorAgent(self.openai_client, self.vector_store)
-        self.violation_prevention = ViolationPreventionAgent(self.openai_client, self.vector_store)
+        # OpenAI configuration
+        self.openai_api_key = os.getenv('OPENAI_API_KEY')
+        if not self.openai_api_key:
+            print("WARNING: OPENAI_API_KEY not found!")
+        else:
+            print(f"✅ API Key loaded")
         
-        # Agent mapping
-        self.agents = {
-            'intent_router': self.intent_router,
-            'complaint_analyzer': self.complaint_analyzer,
-            'compliance_guide': self.compliance_guide,
-            'location_risk': self.location_risk,
-            'strategic_advisor': self.strategic_advisor,
-            'violation_prevention': self.violation_prevention
-        }
+        self.openai_model_name = "gpt-4o-mini"
         
-        # Execution tracking
-        self.execution_history = []
-        self.agent_usage_count = {}
+        # Initialize OpenAI client
+        self.openai_client = OpenAI(api_key=self.openai_api_key)
+        
+        # Data storage
+        self.documents = []
+        self.response_cache = {}
+        
+        # FIXED: Actually initialize vector store!
+        self._init_vector_store()
+        
+        # Initialize agents
+        self._init_agents()
     
-    def generate_with_context(self, prompt: str, model: str = "gpt-4o-mini") -> str:
-        """
-        Generate response with context from vector store
-        Returns formatted response with agent tracking
-        """
+    def _init_vector_store(self):
+        """Initialize the vector store"""
+        print("📦 Initializing vector store...")
+        
         try:
-            start_time = time.time()
+            # Add current directory to path for imports
+            import sys
+            if os.path.dirname(__file__) not in sys.path:
+                sys.path.insert(0, os.path.dirname(__file__))
             
-            # Step 1: Route query to appropriate agents
-            routing_result = self.intent_router.route(prompt)
-            selected_agents = routing_result.get('agents', ['compliance_guide'])
-            execution_plan = routing_result.get('execution_plan', 'sequential')
+            from vector_store import VectorStore
             
-            # Track agent usage
-            for agent_name in selected_agents:
-                self.agent_usage_count[agent_name] = self.agent_usage_count.get(agent_name, 0) + 1
+            # Try multiple possible CSV paths
+            possible_paths = [
+                'backend/data/erm2-nwe9.csv',
+                'data/erm2-nwe9.csv',
+                os.path.join(os.path.dirname(__file__), 'data', 'erm2-nwe9.csv')
+            ]
             
-            # Step 2: Retrieve relevant context from vector store with metadata
-            context_docs = self.vector_store.search(prompt, k=8)
+            csv_path = None
+            for path in possible_paths:
+                if os.path.exists(path):
+                    csv_path = path
+                    break
             
-            # Extract context with source tracking
-            context_with_sources = []
-            for i, doc in enumerate(context_docs):
-                source_info = {
-                    'id': i + 1,
-                    'content': doc.page_content,
-                    'metadata': getattr(doc, 'metadata', {})
-                }
-                context_with_sources.append(source_info)
-            
-            context = "\n\n".join([doc.page_content for doc in context_docs])
-            
-            # Step 3: Execute agents based on routing plan
-            agent_responses = []
-            for agent_name in selected_agents:
-                agent = self.agents.get(agent_name)
-                if agent:
-                    try:
-                        response = agent.process(prompt, context)
-                        agent_responses.append({
-                            'agent': agent_name,
-                            'response': response,
-                            'status': 'success'
-                        })
-                    except Exception as e:
-                        agent_responses.append({
-                            'agent': agent_name,
-                            'response': f"Error: {str(e)}",
-                            'status': 'error'
-                        })
-            
-            # Step 4: Synthesize final response with improved formatting
-            final_response = self._synthesize_responses(
-                prompt, 
-                agent_responses, 
-                context_with_sources,
-                model
-            )
-            
-            # Step 5: Clean up the output
-            final_response = self._clean_output(final_response)
-            
-            # Step 6: Track execution
-            execution_time = time.time() - start_time
-            self.execution_history.append({
-                'prompt': prompt,
-                'agents_used': selected_agents,
-                'execution_time': execution_time,
-                'timestamp': time.time(),
-                'model': model,
-                'sources_used': len(context_docs)
-            })
-            
-            return final_response
-            
+            if csv_path:
+                self.vector_store = VectorStore(csv_path=csv_path)
+                print(f"   ✅ Vector store initialized with {self.vector_store.get_collection_size()} documents")
+            else:
+                # Initialize empty vector store
+                self.vector_store = VectorStore(csv_path="data/erm2-nwe9.csv")  # Will create empty
+                print(f"   ⚠️ No CSV found - vector store is empty (you can upload data later)")
+                
         except Exception as e:
-            return f"Error processing request: {str(e)}"
+            print(f"   ⚠️ Vector store initialization error: {e}")
+            self.vector_store = None
     
-    def _clean_output(self, text: str) -> str:
-        """Clean up AI output for better display"""
-        # Remove markdown headers (##, ###)
-        text = re.sub(r'^#{1,3}\s+', '', text, flags=re.MULTILINE)
+    def _init_agents(self):
+        """Initialize all specialized agents"""
+        print("🤖 Initializing agents...")
         
-        # Remove ** around section titles that are on their own line
-        text = re.sub(r'^\*\*([^*]+)\*\*$', r'\1', text, flags=re.MULTILINE)
+        # Import the intent router from agents directory
+        import sys
+        import os
+        agents_dir = os.path.join(os.path.dirname(__file__), 'agents')
+        if agents_dir not in sys.path:
+            sys.path.insert(0, agents_dir)
         
-        # Limit consecutive newlines
-        text = re.sub(r'\n{3,}', '\n\n', text)
+        # 1. Intent Router
+        from intent_router_agent import IntentRouterAgent
+        self.intent_router = IntentRouterAgent(self.openai_client)
+        print("   ✅ Intent Router loaded")
         
-        # Remove excessive dashes/separators
-        text = re.sub(r'^-{3,}$', '', text, flags=re.MULTILINE)
+        # 2. Complaint Analyzer
+        try:
+            from complaint_analyzer_agent import ComplaintAnalyzerAgent
+            
+            # Check if vector store has complaint data
+            if self.vector_store and self.vector_store.df is not None and len(self.vector_store.df) > 0:
+                # Use vector store data
+                if 'complaint_type' in self.vector_store.df.columns:
+                    self.complaint_analyzer = ComplaintAnalyzerAgent(vector_store=self.vector_store)
+                    print(f"   ✅ Complaint Analyzer loaded: {len(self.vector_store.df)} records")
+                else:
+                    self.complaint_analyzer = None
+                    print(f"   ⚠️ Vector store doesn't contain complaint data")
+            else:
+                self.complaint_analyzer = None
+                print(f"   ⚠️ No complaint data available")
+                
+        except Exception as e:
+            self.complaint_analyzer = None
+            print(f"   ⚠️ Could not load Complaint Analyzer: {e}")
         
-        # Trim whitespace
-        text = text.strip()
+        # 3. Violation Prevention Agent
+        try:
+            from violation_prevention_agent import ViolationPreventionAgent
+            self.violation_prevention = ViolationPreventionAgent(self.openai_client, self.vector_store)
+            print("   ✅ Violation Prevention Agent loaded")
+        except Exception as e:
+            self.violation_prevention = None
+            print(f"   ⚠️ Could not load Violation Prevention Agent: {e}")
         
-        return text
+        # Other agents would be loaded here
+        print("   ℹ️ Other agents will use OpenAI client")
     
-    def _synthesize_responses(
-        self, 
-        prompt: str, 
-        agent_responses: List[Dict], 
-        context_sources: List[Dict],
-        model: str = "gpt-4o-mini"
-    ) -> str:
+    def generate_with_context(self, prompt: str, use_rag: bool = True, model: str = "gpt-4o-mini") -> str:
         """
-        Synthesize multiple agent responses into a coherent, well-structured answer
+        Generate response using proper agent routing
         """
-        if not agent_responses:
-            return "No agent responses available."
+        print("\n" + "="*70)
+        print(f"📝 QUERY: {prompt}")
+        print("="*70)
         
-        # If only one agent, clean and return its response
-        if len(agent_responses) == 1:
-            return self._clean_output(agent_responses[0]['response'])
+        # Step 1: Route the query using intent router
+        routing = self.intent_router.route(prompt)
         
-        # Build context summary
-        context_summary = ""
-        for source in context_sources[:5]:
-            metadata = source.get('metadata', {})
-            borough = metadata.get('borough', 'NYC')
-            complaint_type = metadata.get('complaint_type', 'General')
-            context_summary += f"• {borough}: {complaint_type} - {source['content'][:150]}...\n"
+        print(f"\n🧭 INTENT ROUTER RESULT:")
+        print(f"   Intent: {routing['intent']}")
+        print(f"   Confidence: {routing['confidence']:.2f}")
+        print(f"   Agents: {', '.join(routing['agents'])}")
+        print(f"   Trigger Heatmap: {routing.get('trigger_heatmap', False)}")
         
-        # Collect agent insights
-        agent_insights = ""
-        for agent_resp in agent_responses:
-            agent_name = agent_resp['agent'].replace('_', ' ').title()
-            # Truncate long responses
-            response_text = agent_resp['response'][:800] if len(agent_resp['response']) > 800 else agent_resp['response']
-            agent_insights += f"{agent_name}:\n{response_text}\n\n"
+        # Step 2: Execute the appropriate agent(s)
+        response = self._execute_agents(prompt, routing, model)
         
-        # Concise synthesis prompt
-        synthesis_prompt = f"""You are Kitchen Compass AI - a friendly NYC restaurant consultant.
-
-USER QUESTION: {prompt}
-
-AGENT INSIGHTS:
-{agent_insights}
-
-DATA CONTEXT:
-{context_summary}
+        print(f"\n✅ Response generated ({len(response)} chars)")
+        print("="*70 + "\n")
+        
+        return response
+    
+    def _execute_agents(self, prompt: str, routing: Dict, model: str) -> str:
+        """
+        Execute the agents specified in the routing plan
+        """
+        agents = routing['agents']
+        intent = routing['intent']
+        
+        # PRIORITY 1: Violation Prevention (for health violation queries)
+        if 'violation_prevention' in agents:
+            return self._execute_violation_prevention(prompt, model)
+        
+        # PRIORITY 2: Complaint Analyzer (for 311 data queries)
+        elif 'complaint_analyzer' in agents and self.complaint_analyzer:
+            return self._execute_complaint_analyzer(prompt)
+        
+        # PRIORITY 3: Compliance Guide (for permit/license queries)
+        elif 'compliance_guide' in agents:
+            return self._execute_compliance_guide(prompt, model)
+        
+        # PRIORITY 4: Location Risk (for location analysis)
+        elif 'location_risk' in agents:
+            return self._execute_location_risk(prompt, model)
+        
+        # PRIORITY 5: Strategic Advisor (for business strategy)
+        elif 'strategic_advisor' in agents:
+            return self._execute_strategic_advisor(prompt, model)
+        
+        else:
+            # General response
+            return self._execute_general(prompt, model)
+    
+    def _execute_complaint_analyzer(self, prompt: str) -> str:
+        """Execute complaint analyzer agent"""
+        print("   🎯 Executing: COMPLAINT ANALYZER")
+        
+        result = self.complaint_analyzer.answer_question(prompt)
+        
+        # Format response
+        response = f"{result['answer']}\n\n"
+        
+        if 'data' in result and isinstance(result['data'], dict):
+            response += "📊 Key Data:\n"
+            for key, value in list(result['data'].items())[:5]:
+                response += f"• {key}: {value}\n"
+        
+        if 'sources' in result:
+            response += f"\n📚 Source: {', '.join(result['sources'])}\n"
+        
+        return response
+    
+    def _execute_compliance_guide(self, prompt: str, model: str) -> str:
+        """Execute compliance guide agent"""
+        print("   🎯 Executing: COMPLIANCE GUIDE")
+        
+        system_prompt = """You are the Compliance Guide agent for Kitchen Compass AI.
+        
+Your expertise: NYC restaurant permits, licenses, health codes, and regulatory compliance.
 
 RESPOND WITH:
-1. A direct 2-3 sentence answer first
-2. 3-5 key bullet points with specific data (numbers, boroughs, percentages)
-3. One practical "Pro Tip" at the end
+1. 📋 **Required Permits/Licenses** - List all necessary permits with:
+   - Official name
+   - Issuing agency
+   - Typical cost
+   - Processing time
+   - Key requirements
 
-RULES:
-- NO headers or titles (no ##, ###, **)
-- NO "Executive Summary" or "Key Findings" labels
-- Keep total response under 250 words
-- Be conversational, not formal
-- Use bullet points (•) sparingly
-- Include specific data when available
-- End with: 💡 Pro Tip: [actionable advice]
+2. 📝 **Application Process** - Step-by-step instructions
 
-Write your response now:"""
+3. 💡 **Pro Tips** - Common mistakes to avoid
 
+4. 🔗 **Official Resources** - Links to NYC.gov pages
+
+FORMAT:
+- Use clear section headers with emojis
+- Bullet points for lists
+- Bold key terms
+- Keep concise but comprehensive
+- Always end with an offer to help with specific questions
+
+DO NOT analyze 311 complaint data. Focus on permits, licenses, and regulations.
+DO NOT answer questions about health violations - that's a different agent."""
+
+        return self._call_openai_with_system_prompt(prompt, system_prompt, model)
+    
+    def _execute_location_risk(self, prompt: str, model: str) -> str:
+        """Execute location risk agent"""
+        print("   🎯 Executing: LOCATION RISK")
+        
+        # Check if this is a heatmap request
+        is_heatmap_request = any(word in prompt.lower() for word in ['heatmap', 'heat map', 'show map', 'visualize'])
+        
+        if is_heatmap_request:
+            system_prompt = """You are the Location Risk agent for Kitchen Compass AI.
+
+NOTE: A visual heatmap is being displayed to the user alongside your response.
+
+Your response should complement the heatmap visualization by providing:
+1. 📊 **Borough Risk Summary** - Quick overview of the 5 boroughs
+2. 🎯 **Key Insights** - What the heatmap reveals
+3. 📍 **Recommendations** - Best areas based on risk levels
+4. ⚠️ **Risk Factors** - What causes high/low risk in each area
+
+Keep it concise since users can interact with the heatmap for details.
+Start with: "🗺️ Here's what the heatmap reveals about NYC restaurant risks:"
+
+FORMAT with clear sections and emojis."""
+        else:
+            system_prompt = """You are the Location Risk agent for Kitchen Compass AI.
+
+Your expertise: NYC neighborhood analysis, borough comparison, location-based risk assessment.
+
+RESPOND WITH:
+1. 📍 **Borough Overview** - Risk levels across NYC
+2. 🎯 **Recommended Areas** - Best neighborhoods for restaurants
+3. ⚠️ **Risk Factors** - What to watch out for in each area
+4. 💰 **Cost Considerations** - Rent and competition levels
+5. 📊 **Data Insights** - Key statistics
+
+Use data from NYC boroughs:
+- Manhattan: High foot traffic, expensive, competitive
+- Brooklyn: Growing food scene, moderate costs
+- Queens: Diverse demographics, affordable
+- Bronx: Emerging market, lower costs
+- Staten Island: Residential, limited competition
+
+FORMAT with clear sections, emojis, and actionable insights."""
+
+        return self._call_openai_with_system_prompt(prompt, system_prompt, model)
+    
+    def _execute_strategic_advisor(self, prompt: str, model: str) -> str:
+        """Execute strategic advisor agent"""
+        print("   🎯 Executing: STRATEGIC ADVISOR")
+        
+        system_prompt = """You are the Strategic Advisor agent for Kitchen Compass AI.
+
+Your expertise: Restaurant business strategy, operations, marketing, and financial planning.
+
+RESPOND WITH:
+1. 💡 **Strategic Recommendations** - Actionable business advice
+2. 📈 **Market Analysis** - NYC restaurant landscape insights
+3. 💰 **Financial Considerations** - Budget and revenue planning
+4. 🎯 **Target Market** - Customer demographics and preferences
+5. ⚡ **Quick Wins** - Immediate actions to take
+
+Focus on practical, NYC-specific advice for new restaurant owners."""
+
+        return self._call_openai_with_system_prompt(prompt, system_prompt, model)
+    
+    def _execute_violation_prevention(self, prompt: str, model: str) -> str:
+        """
+        Execute violation prevention agent
+        """
+        print("   🎯 Executing: VIOLATION PREVENTION AGENT")
+        
+        # Use the actual agent if available
+        if self.violation_prevention:
+            print("      Using ViolationPreventionAgent.process()")
+            return self.violation_prevention.process(prompt)
+        
+        # Fallback to OpenAI if agent not available
+        print("      ⚠️ Falling back to OpenAI system prompt")
+        system_prompt = """You are the Violation Prevention agent for Kitchen Compass AI.
+
+Your expertise: NYC health code violations and how to prevent them.
+
+RESPOND WITH:
+1. ⚠️ **Most Common Health Violations in NYC Restaurants**
+2. ✅ **Prevention Best Practices**
+3. 🔍 **Inspection Preparation**
+4. 📋 **Daily Compliance Checklist**
+5. 🛡️ **Staff Training Areas**
+
+Provide specific, actionable advice with NYC health code citations when relevant."""
+
+        return self._call_openai_with_system_prompt(prompt, system_prompt, model)
+    
+    def _execute_general(self, prompt: str, model: str) -> str:
+        """Execute general response"""
+        print("   🎯 Executing: GENERAL")
+        
+        system_prompt = """You are Kitchen Compass AI, a helpful assistant for NYC restaurant entrepreneurs.
+
+Provide clear, concise answers with:
+- Relevant emojis for sections
+- Bullet points for clarity
+- Specific NYC context when applicable
+- Offer to help with more detailed questions"""
+
+        return self._call_openai_with_system_prompt(prompt, system_prompt, model)
+    
+    def _call_openai_with_system_prompt(self, prompt: str, system_prompt: str, model: str) -> str:
+        """Call OpenAI with a specific system prompt"""
         try:
-            response = self.openai_client.chat.completions.create(
+            messages = [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": prompt}
+            ]
+            
+            resp = self.openai_client.chat.completions.create(
                 model=model,
-                messages=[
-                    {
-                        "role": "system", 
-                        "content": "You are a helpful NYC restaurant consultant. Give concise, practical advice. Never use markdown headers. Be conversational."
-                    },
-                    {"role": "user", "content": synthesis_prompt}
-                ],
-                temperature=0.7,
-                max_tokens=600
+                messages=messages,
+                temperature=0.7
             )
-            return response.choices[0].message.content
+            
+            return resp.choices[0].message.content
+            
         except Exception as e:
-            # Fallback to simple concatenation
-            combined = "\n\n".join([
-                f"{r['agent'].replace('_', ' ').title()}: {r['response'][:300]}..." 
-                for r in agent_responses
-            ])
-            return combined
+            return f"Error: {str(e)}"
     
-    def route_query(self, prompt: str) -> List[str]:
-        """
-        Route query and return list of agent names that will be used
-        Useful for streaming UI updates
-        """
-        try:
-            routing_result = self.intent_router.route(prompt)
-            return routing_result.get('agents', ['compliance_guide'])
-        except Exception:
-            return ['compliance_guide']
-    
-    def get_agent_status(self) -> Dict[str, Any]:
-        """
-        Get current status of all agents
-        """
-        return {
-            'agents': [
-                {
-                    'name': 'Intent Router',
-                    'id': 'intent_router',
-                    'status': 'idle',
-                    'usage_count': self.agent_usage_count.get('intent_router', 0),
-                    'description': 'Routes queries to appropriate specialist agents'
-                },
-                {
-                    'name': 'Complaint Analyzer',
-                    'id': 'complaint_analyzer',
-                    'status': 'idle',
-                    'usage_count': self.agent_usage_count.get('complaint_analyzer', 0),
-                    'description': 'Analyzes NYC 311 complaint patterns'
-                },
-                {
-                    'name': 'Compliance Guide',
-                    'id': 'compliance_guide',
-                    'status': 'idle',
-                    'usage_count': self.agent_usage_count.get('compliance_guide', 0),
-                    'description': 'Health code & permit guidance'
-                },
-                {
-                    'name': 'Location Risk',
-                    'id': 'location_risk',
-                    'status': 'idle',
-                    'usage_count': self.agent_usage_count.get('location_risk', 0),
-                    'description': 'Neighborhood risk assessment'
-                },
-                {
-                    'name': 'Strategic Advisor',
-                    'id': 'strategic_advisor',
-                    'status': 'idle',
-                    'usage_count': self.agent_usage_count.get('strategic_advisor', 0),
-                    'description': 'Business strategy insights'
-                },
-                {
-                    'name': 'Violation Prevention',
-                    'id': 'violation_prevention',
-                    'status': 'idle',
-                    'usage_count': self.agent_usage_count.get('violation_prevention', 0),
-                    'description': 'Proactive violation prevention'
-                }
-            ],
-            'total_executions': len(self.execution_history)
-        }
-    
-    def get_stats(self) -> Dict[str, Any]:
-        """
-        Get comprehensive orchestrator statistics
-        """
-        total_chunks = self.vector_store.get_collection_size()
-        
-        avg_execution_time = 0
-        if self.execution_history:
-            avg_execution_time = sum(e['execution_time'] for e in self.execution_history) / len(self.execution_history)
-        
-        # Calculate most used agents
-        most_used_agent = None
-        if self.agent_usage_count:
-            most_used_agent = max(self.agent_usage_count, key=self.agent_usage_count.get)
-        
-        return {
-            'total_chunks': total_chunks,
-            'total_queries': len(self.execution_history),
-            'agent_usage': self.agent_usage_count,
-            'most_used_agent': most_used_agent,
-            'avg_execution_time': round(avg_execution_time, 2),
-            'recent_executions': self.execution_history[-10:] if self.execution_history else []
-        }
-    
-    def ingest_csv(self, df) -> Dict[str, Any]:
-        """
-        Ingest CSV data into vector store
-        """
-        try:
-            result = self.vector_store.ingest_dataframe(df)
+    def ingest_csv(self, df: pd.DataFrame) -> Dict:
+        """Ingest CSV data into vector store"""
+        if self.vector_store:
+            return self.vector_store.ingest_dataframe(df)
+        else:
+            print("⚠️ Vector store not initialized")
             return {
-                'rows_ingested': len(df),
-                'total_chunks': self.vector_store.get_collection_size(),
-                'status': 'success'
-            }
-        except Exception as e:
-            return {
-                'rows_ingested': 0,
-                'total_chunks': 0,
-                'status': 'error',
-                'error': str(e)
+                'success': False,
+                'error': 'Vector store not initialized',
+                'rows_ingested': 0
             }
     
-    def compare_models(self, prompt: str) -> Dict[str, Any]:
-        """
-        Compare responses from different models
-        """
-        gpt_response = self.generate_with_context(prompt, model="gpt-4o-mini")
+    def get_stats(self) -> Dict:
+        """Get system statistics"""
+        stats = {
+            'document_count': len(self.documents),
+            'total_chunks': len(self.documents),
+            'cache_size': len(self.response_cache),
+            'models_available': ['gpt-4o-mini']
+        }
         
-        # For Ollama, you'd call your ollama_client here
-        ollama_response = "Ollama integration coming soon..."
+        # Add vector store stats
+        if self.vector_store:
+            stats['vector_store_size'] = self.vector_store.get_collection_size()
+            stats['vector_store_active'] = True
+        else:
+            stats['vector_store_size'] = 0
+            stats['vector_store_active'] = False
+        
+        if self.complaint_analyzer:
+            stats['complaint_records'] = len(self.vector_store.df) if self.vector_store and self.vector_store.df is not None else 0
+            stats['complaint_agent_active'] = True
+        else:
+            stats['complaint_agent_active'] = False
+        
+        if self.violation_prevention:
+            stats['violation_prevention_active'] = True
+        else:
+            stats['violation_prevention_active'] = False
+        
+        return stats
+    
+    def get_agent_status(self) -> Dict:
+        """Get agent status"""
+        agents = [
+            {'name': 'Intent Router', 'status': 'active', 'usage_count': 0},
+            {'name': 'Complaint Analyzer', 'status': 'active' if self.complaint_analyzer else 'inactive', 'usage_count': 0},
+            {'name': 'Compliance Guide', 'status': 'active', 'usage_count': 0},
+            {'name': 'Location Risk', 'status': 'active', 'usage_count': 0},
+            {'name': 'Strategic Advisor', 'status': 'active', 'usage_count': 0},
+            {'name': 'Violation Prevention', 'status': 'active' if self.violation_prevention else 'inactive', 'usage_count': 0},
+        ]
         
         return {
-            'gpt_response': gpt_response,
-            'ollama_response': ollama_response
+            'agents': agents,
+            'total_executions': 0
         }

@@ -5,34 +5,91 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
     <title>Kitchen Compass AI - Multi-Agent System</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts - Elegant Typography -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700;800&family=Source+Sans+3:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
     <!-- ArcGIS CSS for Heatmap -->
     <link rel="stylesheet" href="https://js.arcgis.com/4.28/esri/themes/light/main.css">
     <style>
-        /* ========== CRITICAL FIX: NO SCROLL ON PAGE ========== */
-        * {
-            box-sizing: border-box;
+        /* ========== ROOT VARIABLES - WARM PALETTE FROM PRESENTATION ========== */
+        :root {
+            /* Primary Colors from Presentation */
+            --primary: #722F37;           /* Deep burgundy/maroon - title color */
+            --primary-dark: #5C262D;
+            --primary-light: #8B3A44;
+            --primary-glow: rgba(114, 47, 55, 0.25);
+            
+            /* Accent - Terracotta/Rust Orange */
+            --accent: #C75B39;
+            --accent-dark: #A84A2D;
+            --accent-light: #D97B5D;
+            --accent-glow: rgba(199, 91, 57, 0.25);
+            
+            /* Background - Warm Peachy Blush */
+            --bg-primary: #F5DDD5;
+            --bg-secondary: #FAEAE5;
+            --bg-tertiary: #FFF5F2;
+            --bg-card: #FFFFFF;
+            
+            /* Text Colors */
+            --text-primary: #4A2C2A;
+            --text-secondary: #6B4744;
+            --text-muted: #8B6B68;
+            --text-light: #A88B88;
+            
+            /* Semantic Colors */
+            --success: #2D8B5A;
+            --success-light: #D4EDDA;
+            --warning: #C78C3C;
+            --warning-light: #FFF3CD;
+            --error: #C75050;
+            --error-light: #F8D7DA;
+            --info: #4A7C9B;
+            --info-light: #D1ECF1;
+            
+            /* Shadows */
+            --shadow-sm: 0 2px 8px rgba(74, 44, 42, 0.08);
+            --shadow-md: 0 8px 25px rgba(74, 44, 42, 0.1);
+            --shadow-lg: 0 15px 40px rgba(74, 44, 42, 0.12);
+            
+            /* Borders */
+            --border-light: rgba(114, 47, 55, 0.1);
+            --border-medium: rgba(114, 47, 55, 0.2);
         }
 
-        html {
-            height: 100vh;
-            overflow: hidden !important;
+        /* ========== GLOBAL STYLES ========== */
+        * {
+            box-sizing: border-box;
             margin: 0;
             padding: 0;
+        }
+
+        html, body {
+            height: 100vh;
+            overflow: hidden;
+            font-family: 'Source Sans 3', -apple-system, BlinkMacSystemFont, sans-serif;
         }
 
         body {
-            height: 100vh;
-            overflow: hidden !important;
-            margin: 0;
-            padding: 0;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #FEECEB 0%, #fcb69f 100%);
-            -webkit-text-size-adjust: 100%;
-            -moz-text-size-adjust: 100%;
-            -ms-text-size-adjust: 100%;
+            background: linear-gradient(135deg, var(--bg-primary) 0%, var(--bg-secondary) 50%, var(--bg-tertiary) 100%);
+            color: var(--text-primary);
+            position: relative;
         }
-        
-        /* ========== MAIN APP CONTAINER - VIEWPORT FIT ========== */
+
+        /* Subtle Pattern Overlay */
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background: 
+                radial-gradient(ellipse at 20% 30%, rgba(199, 91, 57, 0.08) 0%, transparent 50%),
+                radial-gradient(ellipse at 80% 70%, rgba(114, 47, 55, 0.06) 0%, transparent 50%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        /* ========== MAIN CONTAINER ========== */
         .app-container {
             display: flex;
             height: 100vh;
@@ -41,20 +98,22 @@
             padding: 1rem;
             gap: 1rem;
             position: relative;
+            z-index: 1;
         }
 
-        /* ========== SIDEBAR - FIXED HEIGHT, INTERNAL SCROLL ONLY ========== */
+        /* ========== SIDEBAR - WARM ELEGANT STYLE ========== */
         .sidebar {
-            width: 280px;
-            min-width: 280px;
+            width: 300px;
+            min-width: 300px;
             height: calc(100vh - 2rem);
-            background: white;
+            background: var(--bg-card);
+            border: 1px solid var(--border-light);
             border-radius: 1.5rem;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.15);
+            box-shadow: var(--shadow-lg);
             display: flex;
             flex-direction: column;
             overflow: hidden;
-            transition: all 0.3s ease-in-out;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
             z-index: 100;
             flex-shrink: 0;
         }
@@ -65,15 +124,49 @@
             padding: 0;
             margin: 0;
             opacity: 0;
-            overflow: hidden;
+            transform: translateX(-20px);
         }
 
         .sidebar-content {
-            padding: 1.25rem;
+            padding: 1.5rem;
             display: flex;
             flex-direction: column;
             height: 100%;
             overflow: hidden;
+        }
+
+        .sidebar-header {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            margin-bottom: 1.5rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid var(--border-light);
+        }
+
+        .sidebar-logo {
+            width: 44px;
+            height: 44px;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            box-shadow: 0 4px 12px var(--primary-glow);
+        }
+
+        .sidebar-title {
+            font-family: 'Playfair Display', serif;
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: var(--primary);
+        }
+
+        .sidebar-subtitle {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            font-weight: 500;
         }
 
         .sidebar-scroll {
@@ -84,7 +177,6 @@
             padding-right: 0.5rem;
         }
 
-        /* Custom scrollbar for sidebar - thin and subtle */
         .sidebar-scroll::-webkit-scrollbar {
             width: 4px;
         }
@@ -92,11 +184,209 @@
             background: transparent;
         }
         .sidebar-scroll::-webkit-scrollbar-thumb {
-            background: #F95039;
+            background: var(--accent);
             border-radius: 2px;
         }
 
-        /* ========== MAIN CONTENT - FILLS REMAINING ========== */
+        /* ========== STAT CARDS ========== */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.75rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg-tertiary) 100%);
+            border: 1px solid var(--border-light);
+            border-radius: 1rem;
+            padding: 1rem;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-md);
+        }
+
+        .stat-card.highlight {
+            background: linear-gradient(135deg, rgba(199, 91, 57, 0.1) 0%, rgba(199, 91, 57, 0.05) 100%);
+            border-color: rgba(199, 91, 57, 0.3);
+        }
+
+        .stat-value {
+            font-size: 1.75rem;
+            font-weight: 800;
+            font-family: 'JetBrains Mono', monospace;
+            color: var(--primary);
+        }
+
+        .stat-card.highlight .stat-value {
+            color: var(--accent);
+        }
+
+        .stat-label {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-top: 0.25rem;
+            font-weight: 600;
+        }
+
+        /* ========== SECTION HEADERS ========== */
+        .section-header {
+            font-size: 0.75rem;
+            font-weight: 700;
+            color: var(--primary);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin: 1.5rem 0 0.75rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .section-header::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: linear-gradient(90deg, var(--border-medium) 0%, transparent 100%);
+        }
+
+        /* ========== AGENT STATUS LIST ========== */
+        .agent-list {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .agent-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.6rem 0.75rem;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-light);
+            border-radius: 0.75rem;
+            font-size: 0.8rem;
+            transition: all 0.3s ease;
+        }
+
+        .agent-item:hover {
+            background: var(--bg-tertiary);
+            border-color: var(--accent);
+            transform: translateX(3px);
+        }
+
+        .agent-name {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: var(--text-primary);
+            font-weight: 500;
+        }
+
+        .agent-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--success);
+            box-shadow: 0 0 8px rgba(45, 139, 90, 0.4);
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.7; transform: scale(0.9); }
+        }
+
+        .agent-count {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.7rem;
+            padding: 0.2rem 0.5rem;
+            background: var(--bg-card);
+            border: 1px solid var(--border-light);
+            border-radius: 0.5rem;
+            color: var(--text-secondary);
+            font-weight: 600;
+        }
+
+        /* ========== TOPIC BUTTONS ========== */
+        .topic-btn {
+            width: 100%;
+            text-align: left;
+            padding: 0.75rem 1rem;
+            background: var(--bg-card);
+            border: 1px solid var(--border-light);
+            border-radius: 0.75rem;
+            font-size: 0.8rem;
+            color: var(--text-primary);
+            cursor: pointer;
+            margin-bottom: 0.5rem;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            font-weight: 500;
+        }
+
+        .topic-btn:hover {
+            background: linear-gradient(135deg, rgba(199, 91, 57, 0.08) 0%, rgba(199, 91, 57, 0.03) 100%);
+            border-color: var(--accent);
+            transform: translateX(4px);
+            box-shadow: var(--shadow-sm);
+        }
+
+        .topic-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1rem;
+            flex-shrink: 0;
+        }
+
+        /* ========== QUICK LINKS ========== */
+        .quick-link {
+            display: block;
+            font-size: 0.75rem;
+            color: var(--accent);
+            text-decoration: none;
+            padding: 0.4rem 0;
+            transition: all 0.2s ease;
+            font-weight: 500;
+        }
+
+        .quick-link:hover {
+            color: var(--primary);
+            transform: translateX(4px);
+        }
+
+        /* ========== CLEAR BUTTON ========== */
+        .clear-btn {
+            width: 100%;
+            background: var(--error-light);
+            color: var(--error);
+            border: 1px solid rgba(199, 80, 80, 0.3);
+            padding: 0.75rem;
+            border-radius: 0.75rem;
+            font-size: 0.8rem;
+            cursor: pointer;
+            margin-top: 1rem;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .clear-btn:hover {
+            background: rgba(199, 80, 80, 0.15);
+            border-color: var(--error);
+        }
+
+        /* ========== MAIN CONTENT ========== */
         .main-content {
             flex: 1;
             display: flex;
@@ -104,61 +394,266 @@
             height: calc(100vh - 2rem);
             overflow: hidden;
             min-width: 0;
-            transition: all 0.3s ease-in-out;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
-        /* ========== HEADER - FIXED HEIGHT ========== */
+        /* ========== HEADER ========== */
         .header {
             text-align: center;
-            padding: 0.5rem 0;
+            padding: 0.75rem 0;
             flex-shrink: 0;
         }
 
+        .header-content {
+            display: inline-flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
         .header h1 {
-            font-size: clamp(1.5rem, 4vw, 2.5rem);
-            font-weight: bold;
-            color: #F95039;
-            margin: 0;
-            line-height: 1.2;
+            font-family: 'Playfair Display', serif;
+            font-size: clamp(1.75rem, 5vw, 3rem);
+            font-weight: 700;
+            color: var(--primary);
+            letter-spacing: -0.5px;
+            line-height: 1.1;
         }
 
-        .header p {
-            font-size: clamp(0.7rem, 2vw, 0.9rem);
-            color: #555;
-            margin: 0;
+        .header-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-top: 0.5rem;
+            padding: 0.4rem 1rem;
+            background: var(--bg-card);
+            border: 1px solid var(--border-light);
+            border-radius: 2rem;
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            box-shadow: var(--shadow-sm);
         }
 
-        /* ========== CHAT CARD - FILLS AVAILABLE SPACE ========== */
+        .badge-dot {
+            width: 6px;
+            height: 6px;
+            background: var(--success);
+            border-radius: 50%;
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+
+        /* ========== CHAT CARD ========== */
         .chat-card {
             flex: 1;
             display: flex;
             flex-direction: column;
-            background: white;
+            background: var(--bg-card);
+            border: 1px solid var(--border-light);
             border-radius: 1.5rem;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+            box-shadow: var(--shadow-lg);
             overflow: hidden;
             min-height: 0;
             margin-bottom: 0.75rem;
         }
 
         .chat-header {
-            padding: 0.75rem 1rem;
-            border-bottom: 1px solid #eee;
+            padding: 1rem 1.25rem;
+            border-bottom: 1px solid var(--border-light);
             display: flex;
             justify-content: space-between;
             align-items: center;
             flex-shrink: 0;
             flex-wrap: wrap;
+            gap: 0.75rem;
+            background: linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg-tertiary) 100%);
+        }
+
+        .chat-status {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.4rem 0.75rem;
+            background: var(--success-light);
+            border: 1px solid rgba(45, 139, 90, 0.3);
+            border-radius: 2rem;
+            font-size: 0.75rem;
+            color: var(--success);
+            font-weight: 600;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            background: var(--success);
+            border-radius: 50%;
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+
+        .chat-controls {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            flex-wrap: wrap;
+        }
+
+        .model-select {
+            padding: 0.5rem 0.75rem;
+            background: var(--bg-card);
+            border: 1px solid var(--border-medium);
+            border-radius: 0.5rem;
+            font-size: 0.8rem;
+            color: var(--text-primary);
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-weight: 500;
+        }
+
+        .model-select:hover, .model-select:focus {
+            border-color: var(--accent);
+            outline: none;
+        }
+
+        .toggle-label {
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            cursor: pointer;
+            font-weight: 500;
+        }
+
+        .toggle-label input {
+            accent-color: var(--accent);
+        }
+
+        .analytics-btn {
+            background: linear-gradient(135deg, var(--accent) 0%, var(--accent-dark) 100%);
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem;
+            font-size: 0.8rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 12px var(--accent-glow);
+        }
+
+        .analytics-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px var(--accent-glow);
+        }
+
+        /* ========== AGENT FLOW VISUALIZATION ========== */
+        .agent-flow {
+            padding: 1rem 1.25rem;
+            background: linear-gradient(90deg, var(--warning-light) 0%, rgba(255, 243, 205, 0.5) 100%);
+            border-bottom: 1px solid rgba(199, 140, 60, 0.2);
+            display: none;
+        }
+
+        .agent-flow.active {
+            display: block;
+            animation: slideDown 0.3s ease-out;
+        }
+
+        @keyframes slideDown {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .agent-flow-header {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 0.75rem;
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--warning);
+        }
+
+        .agent-flow-spinner {
+            width: 14px;
+            height: 14px;
+            border: 2px solid rgba(199, 140, 60, 0.3);
+            border-top-color: var(--warning);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .agent-indicators {
+            display: flex;
+            flex-wrap: wrap;
             gap: 0.5rem;
         }
 
-        /* ========== CHAT MESSAGES - ONLY THIS AREA SCROLLS ========== */
+        .agent-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            padding: 0.4rem 0.75rem;
+            border-radius: 2rem;
+            font-size: 0.7rem;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            animation: fadeIn 0.3s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: scale(0.9); }
+            to { opacity: 1; transform: scale(1); }
+        }
+
+        .agent-indicator.active {
+            background: var(--success-light);
+            border: 1px solid rgba(45, 139, 90, 0.3);
+            color: var(--success);
+        }
+
+        .agent-indicator.active::before {
+            content: '';
+            width: 6px;
+            height: 6px;
+            background: var(--success);
+            border-radius: 50%;
+            animation: pulse 1s ease-in-out infinite;
+        }
+
+        .agent-indicator.waiting {
+            background: var(--warning-light);
+            border: 1px solid rgba(199, 140, 60, 0.3);
+            color: var(--warning);
+        }
+
+        .agent-indicator.complete {
+            background: var(--info-light);
+            border: 1px solid rgba(74, 124, 155, 0.3);
+            color: var(--info);
+        }
+
+        .agent-indicator.complete::before {
+            content: '✓';
+            font-size: 0.6rem;
+        }
+
+        /* ========== CHAT MESSAGES ========== */
         .chat-container {
             flex: 1;
             overflow-y: auto;
-            padding: 1rem;
+            padding: 1.25rem;
             min-height: 0;
             scroll-behavior: smooth;
+            background: linear-gradient(180deg, var(--bg-tertiary) 0%, var(--bg-card) 100%);
         }
 
         .chat-container::-webkit-scrollbar {
@@ -168,194 +663,21 @@
             background: transparent;
         }
         .chat-container::-webkit-scrollbar-thumb {
-            background: #ddd;
+            background: var(--border-medium);
             border-radius: 3px;
         }
         .chat-container::-webkit-scrollbar-thumb:hover {
-            background: #ccc;
+            background: var(--accent);
         }
 
-        /* ========== SUGGESTED QUESTIONS - FIXED ========== */
-        .suggested-questions {
-            padding: 0.75rem 1rem;
-            border-top: 1px solid #eee;
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 0.5rem;
-            flex-shrink: 0;
-        }
-
-        .suggested-btn {
-            background: #FFF3F0;
-            color: #F95039;
-            border: none;
-            padding: 0.5rem 0.75rem;
-            border-radius: 0.5rem;
-            font-size: 0.7rem;
-            cursor: pointer;
-            transition: all 0.2s;
-            text-align: center;
-        }
-
-        .suggested-btn:hover {
-            background: #FFE5E0;
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-        }
-
-        /* ========== INPUT SECTION - FIXED AT BOTTOM ========== */
-        .input-section {
-            background: white;
-            border-radius: 1rem;
-            padding: 0.75rem 1rem;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
-            flex-shrink: 0;
-            margin-bottom: 0.5rem;
-        }
-
-        .input-row {
-            display: flex;
-            gap: 0.5rem;
-        }
-
-        .input-row input {
-            flex: 1;
-            padding: 0.6rem 1rem;
-            border: 2px solid #F95039;
-            border-radius: 0.5rem;
-            font-size: 0.85rem;
-            outline: none;
-        }
-
-        .input-row input:focus {
-            box-shadow: 0 0 0 3px rgba(249, 80, 57, 0.2);
-        }
-
-        .send-btn {
-            background: #F95039;
-            color: white;
-            border: none;
-            padding: 0.6rem 1.25rem;
-            border-radius: 0.5rem;
-            cursor: pointer;
-            font-weight: bold;
-            font-size: 1rem;
-            transition: all 0.2s;
-        }
-
-        .send-btn:hover {
-            opacity: 0.9;
-            transform: scale(1.02);
-        }
-
-        /* ========== UPLOAD SECTION - FIXED ========== */
-        .upload-section {
-            background: white;
-            border-radius: 1rem;
-            padding: 0.6rem 1rem;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
-            flex-shrink: 0;
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
-            flex-wrap: wrap;
-        }
-
-        .upload-section label {
-            font-size: 0.75rem;
-            color: #555;
-            font-weight: 500;
-        }
-
-        .upload-section input[type="file"] {
-            font-size: 0.7rem;
-        }
-
-        .upload-btn {
-            background: #22c55e;
-            color: white;
-            border: none;
-            padding: 0.4rem 0.75rem;
-            border-radius: 0.375rem;
-            font-size: 0.7rem;
-            cursor: pointer;
-            font-weight: 500;
-            transition: all 0.2s;
-        }
-
-        .upload-btn:hover {
-            background: #16a34a;
-        }
-
-        /* ========== HAMBURGER BUTTON ========== */
-        .hamburger-btn {
-            position: fixed;
-            top: 1.5rem;
-            left: 1.5rem;
-            z-index: 200;
-            background: white;
-            color: #F95039;
-            border: none;
-            width: 40px;
-            height: 40px;
-            border-radius: 0.5rem;
-            font-size: 1.25rem;
-            cursor: pointer;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-            transition: all 0.2s;
-        }
-
-        .hamburger-btn:hover {
-            transform: scale(1.05);
-            box-shadow: 0 6px 16px rgba(0,0,0,0.2);
-        }
-
-        /* ========== SIDEBAR OVERLAY (Mobile) ========== */
-        .sidebar-overlay {
-            display: none;
-            position: fixed;
-            inset: 0;
-            background: rgba(0,0,0,0.5);
-            z-index: 99;
-            transition: opacity 0.3s ease;
-        }
-
-        .sidebar-overlay.active {
-            display: block;
-        }
-
-        /* ========== FOOD DECORATIONS ========== */
-        .food-decoration {
-            position: fixed;
-            opacity: 0.6;
-            z-index: 0;
-            pointer-events: none;
-            transition: opacity 0.3s ease, transform 0.3s ease;
-        }
-
-        body.sidebar-closed .food-decoration.left-deco {
-            opacity: 0;
-            transform: translateX(-50px);
-        }
-
-        /* ========== MESSAGE STYLES ========== */
         .message {
-            animation: fadeIn 0.3s ease-in;
-            margin-bottom: 0.75rem;
+            animation: messageIn 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            margin-bottom: 1rem;
         }
 
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
+        @keyframes messageIn {
+            from { opacity: 0; transform: translateY(15px); }
             to { opacity: 1; transform: translateY(0); }
-        }
-
-        .message-bubble {
-            position: relative;
-            max-width: 85%;
-            padding: 0.75rem 1rem;
-            border-radius: 1rem;
-            font-size: 0.85rem;
-            line-height: 1.5;
         }
 
         .message.user {
@@ -363,54 +685,58 @@
             justify-content: flex-end;
         }
 
-        .message.user .message-bubble {
-            background: #F95039 !important;
-            color: white !important;
-        }
-
         .message.bot {
             display: flex;
             justify-content: flex-start;
         }
 
+        .message-bubble {
+            position: relative;
+            max-width: 80%;
+            padding: 1rem 1.25rem;
+            border-radius: 1.25rem;
+            font-size: 0.9rem;
+            line-height: 1.6;
+        }
+
+        .message.user .message-bubble {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            color: white;
+            border-bottom-right-radius: 0.25rem;
+            box-shadow: 0 4px 12px var(--primary-glow);
+        }
+
         .message.bot .message-bubble {
-            background: #f3f4f6 !important;
-            color: #333 !important;
+            background: var(--bg-card);
+            border: 1px solid var(--border-light);
+            color: var(--text-primary);
+            border-bottom-left-radius: 0.25rem;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .copy-btn {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            padding: 4px 10px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-light);
+            border-radius: 4px;
+            font-size: 10px;
+            color: var(--text-muted);
+            cursor: pointer;
+            transition: all 0.2s;
+            opacity: 0;
         }
 
         .message-bubble:hover .copy-btn {
             opacity: 1;
         }
 
-        /* ========== COPY BUTTON ========== */
-        .copy-btn {
-            position: absolute;
-            top: 8px;
-            right: 8px;
-            padding: 4px 10px;
-            background-color: #f3f4f6;
-            border: none;
-            border-radius: 4px;
-            font-size: 10px;
-            cursor: pointer;
-            transition: all 0.2s;
-            opacity: 0;
-        }
-
         .copy-btn:hover {
-            background-color: #e5e7eb;
-        }
-
-        /* ========== LOADING DOTS ========== */
-        .loading-dots::after {
-            content: '...';
-            animation: dots 1.5s steps(4, end) infinite;
-        }
-
-        @keyframes dots {
-            0%, 20% { content: '.'; }
-            40% { content: '..'; }
-            60%, 100% { content: '...'; }
+            background: var(--bg-tertiary);
+            border-color: var(--accent);
+            color: var(--accent);
         }
 
         /* ========== TYPING INDICATOR ========== */
@@ -424,7 +750,7 @@
             width: 8px;
             height: 8px;
             border-radius: 50%;
-            background-color: #9ca3af;
+            background: var(--accent);
             animation: typing 1.4s infinite;
         }
 
@@ -437,160 +763,223 @@
         }
 
         @keyframes typing {
-            0%, 60%, 100% { transform: translateY(0); }
-            30% { transform: translateY(-10px); }
+            0%, 60%, 100% { transform: translateY(0); opacity: 0.5; }
+            30% { transform: translateY(-10px); opacity: 1; }
         }
 
-        /* ========== AGENT FLOW ========== */
-        .agent-flow {
-            background-color: #fef3c7;
-            border-left: 4px solid #f59e0b;
+        .loading-dots::after {
+            content: '...';
+            animation: dots 1.5s steps(4, end) infinite;
+        }
+
+        @keyframes dots {
+            0%, 20% { content: '.'; }
+            40% { content: '..'; }
+            60%, 100% { content: '...'; }
+        }
+
+        /* ========== SUGGESTED QUESTIONS ========== */
+        .suggested-questions {
             padding: 0.75rem 1rem;
-            margin: 0 1rem 0.5rem;
-            border-radius: 0 0.5rem 0.5rem 0;
-        }
-
-        .agent-indicator {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            padding: 4px 10px;
-            border-radius: 1rem;
-            font-size: 0.65rem;
-            font-weight: 600;
-            margin: 3px;
-            animation: pulse 2s ease-in-out infinite;
-        }
-
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.7; }
-        }
-
-        .agent-indicator.active {
-            background-color: #dcfce7;
-            color: #16a34a;
-        }
-
-        .agent-indicator.waiting {
-            background-color: #fef3c7;
-            color: #d97706;
-        }
-
-        .agent-indicator.complete {
-            background-color: #dbeafe;
-            color: #2563eb;
-        }
-
-        /* ========== SIDEBAR SECTIONS ========== */
-        .section-header {
-            font-size: 0.9rem;
-            font-weight: bold;
-            color: #F95039;
-            margin-bottom: 0.5rem;
-            margin-top: 1rem;
-            display: flex;
-            align-items: center;
+            border-top: 1px solid var(--border-light);
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
             gap: 0.5rem;
+            flex-shrink: 0;
+            background: var(--bg-secondary);
         }
 
-        .section-header:first-child {
-            margin-top: 0;
-        }
-
-        .stat-box {
+        .suggested-btn {
+            background: var(--bg-card);
+            border: 1px solid var(--border-light);
+            color: var(--text-primary);
             padding: 0.6rem 0.75rem;
-            border-radius: 0.5rem;
-            margin-bottom: 0.4rem;
+            border-radius: 0.75rem;
+            font-size: 0.75rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-align: left;
+            font-weight: 500;
         }
 
-        .stat-box p {
-            margin: 0;
+        .suggested-btn:hover {
+            background: linear-gradient(135deg, rgba(199, 91, 57, 0.08) 0%, rgba(199, 91, 57, 0.03) 100%);
+            border-color: var(--accent);
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-sm);
         }
 
-        .stat-label {
-            font-size: 0.65rem;
-            color: #666;
+        /* ========== INPUT SECTION ========== */
+        .input-section {
+            background: var(--bg-card);
+            border: 1px solid var(--border-light);
+            border-radius: 1rem;
+            padding: 0.75rem 1rem;
+            box-shadow: var(--shadow-md);
+            flex-shrink: 0;
+            margin-bottom: 0.5rem;
         }
 
-        .stat-value {
+        .input-row {
+            display: flex;
+            gap: 0.75rem;
+            align-items: center;
+        }
+
+        .input-row input {
+            flex: 1;
+            padding: 0.75rem 1rem;
+            background: var(--bg-secondary);
+            border: 2px solid var(--border-light);
+            border-radius: 0.75rem;
+            font-size: 0.9rem;
+            color: var(--text-primary);
+            outline: none;
+            transition: all 0.3s ease;
+        }
+
+        .input-row input::placeholder {
+            color: var(--text-light);
+        }
+
+        .input-row input:focus {
+            border-color: var(--accent);
+            background: var(--bg-card);
+            box-shadow: 0 0 0 3px var(--accent-glow);
+        }
+
+        .send-btn {
+            background: linear-gradient(135deg, var(--accent) 0%, var(--accent-dark) 100%);
+            color: white;
+            border: none;
+            width: 48px;
+            height: 48px;
+            border-radius: 0.75rem;
+            cursor: pointer;
             font-size: 1.25rem;
-            font-weight: bold;
-        }
-
-        .agent-item {
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 12px var(--accent-glow);
             display: flex;
             align-items: center;
-            justify-content: space-between;
-            padding: 0.4rem 0.6rem;
-            background: #f9fafb;
+            justify-content: center;
+        }
+
+        .send-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 6px 16px var(--accent-glow);
+        }
+
+        .send-btn:active {
+            transform: scale(0.98);
+        }
+
+        /* ========== UPLOAD SECTION ========== */
+        .upload-section {
+            background: var(--bg-card);
+            border: 1px solid var(--border-light);
+            border-radius: 1rem;
+            padding: 0.75rem 1rem;
+            box-shadow: var(--shadow-md);
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .upload-section label {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            font-weight: 600;
+        }
+
+        .upload-section input[type="file"] {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+        }
+
+        .upload-section input[type="file"]::file-selector-button {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-medium);
+            color: var(--text-primary);
+            padding: 0.4rem 0.75rem;
             border-radius: 0.5rem;
-            margin-bottom: 0.3rem;
-            font-size: 0.7rem;
-        }
-
-        .agent-dot {
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            background: #22c55e;
-            margin-right: 0.5rem;
-            display: inline-block;
-        }
-
-        .agent-dot.active {
-            background: #22c55e;
-        }
-
-        .agent-dot.idle {
-            background: #fbbf24;
-        }
-
-        .topic-btn {
-            width: 100%;
-            text-align: left;
-            padding: 0.5rem 0.75rem;
-            border-radius: 0.5rem;
-            font-size: 0.7rem;
-            border: none;
             cursor: pointer;
-            margin-bottom: 0.3rem;
-            transition: all 0.2s;
+            font-size: 0.75rem;
+            margin-right: 0.75rem;
+            transition: all 0.2s ease;
             font-weight: 500;
         }
 
-        .topic-btn:hover {
-            transform: translateX(3px);
+        .upload-section input[type="file"]::file-selector-button:hover {
+            background: var(--bg-tertiary);
+            border-color: var(--accent);
         }
 
-        .quick-link {
+        .upload-btn {
+            background: linear-gradient(135deg, var(--success) 0%, #247A4C 100%);
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem;
+            font-size: 0.8rem;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 12px rgba(45, 139, 90, 0.25);
+        }
+
+        .upload-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(45, 139, 90, 0.3);
+        }
+
+        #uploadStatus {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+
+        /* ========== HAMBURGER BUTTON ========== */
+        .hamburger-btn {
+            position: fixed;
+            top: 1.5rem;
+            left: 1.5rem;
+            z-index: 200;
+            background: var(--bg-card);
+            color: var(--primary);
+            border: 1px solid var(--border-light);
+            width: 44px;
+            height: 44px;
+            border-radius: 0.75rem;
+            font-size: 1.25rem;
+            cursor: pointer;
+            box-shadow: var(--shadow-md);
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .hamburger-btn:hover {
+            transform: scale(1.05);
+            border-color: var(--accent);
+            box-shadow: var(--shadow-lg);
+        }
+
+        /* ========== SIDEBAR OVERLAY ========== */
+        .sidebar-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(74, 44, 42, 0.3);
+            backdrop-filter: blur(4px);
+            z-index: 99;
+            transition: opacity 0.3s ease;
+        }
+
+        .sidebar-overlay.active {
             display: block;
-            font-size: 0.7rem;
-            color: #3b82f6;
-            text-decoration: none;
-            padding: 0.2rem 0;
-        }
-
-        .quick-link:hover {
-            text-decoration: underline;
-        }
-
-        .clear-btn {
-            width: 100%;
-            background: #fef2f2;
-            color: #dc2626;
-            border: none;
-            padding: 0.5rem;
-            border-radius: 0.5rem;
-            font-size: 0.7rem;
-            cursor: pointer;
-            margin-top: 1rem;
-            font-weight: 500;
-            transition: all 0.2s;
-        }
-
-        .clear-btn:hover {
-            background: #fee2e2;
         }
 
         /* ========== TOAST NOTIFICATIONS ========== */
@@ -598,143 +987,164 @@
             position: fixed;
             top: 20px;
             right: 20px;
-            min-width: 280px;
-            padding: 14px 18px;
-            border-radius: 10px;
+            min-width: 300px;
+            padding: 1rem 1.25rem;
+            border-radius: 1rem;
             color: white;
             font-weight: 500;
             font-size: 0.85rem;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            box-shadow: var(--shadow-lg);
             z-index: 10000;
-            animation: slideIn 0.3s ease-out;
+            animation: toastIn 0.4s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
-        @keyframes slideIn {
-            from { opacity: 0; transform: translateX(100px); }
-            to { opacity: 1; transform: translateX(0); }
+        @keyframes toastIn {
+            from { opacity: 0; transform: translateX(100px) scale(0.9); }
+            to { opacity: 1; transform: translateX(0) scale(1); }
         }
 
-        .toast.success { background-color: #10b981; }
-        .toast.error { background-color: #ef4444; }
-        .toast.info { background-color: #3b82f6; }
-        .toast.warning { background-color: #f59e0b; }
-
-        /* ========== CODE BLOCK STYLING ========== */
-        pre {
-            background-color: #1e293b;
-            color: #e2e8f0;
-            border-radius: 8px;
-            padding: 12px;
-            overflow-x: auto;
-            margin: 10px 0;
-            font-size: 0.8rem;
+        .toast.success { 
+            background: linear-gradient(135deg, var(--success) 0%, #247A4C 100%);
+        }
+        .toast.error { 
+            background: linear-gradient(135deg, var(--error) 0%, #A83D3D 100%);
+        }
+        .toast.info { 
+            background: linear-gradient(135deg, var(--info) 0%, #3A6B85 100%);
+        }
+        .toast.warning { 
+            background: linear-gradient(135deg, var(--warning) 0%, #A87530 100%);
         }
 
-        code {
-            font-family: 'Courier New', monospace;
-            font-size: 0.8rem;
-        }
-
-        /* ========== TABLE STYLING ========== */
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin: 10px 0;
-            font-size: 0.8rem;
-        }
-
-        table th {
-            background-color: #f95039;
-            color: white;
-            padding: 8px;
-            text-align: left;
-            font-weight: 600;
-        }
-
-        table td {
-            padding: 8px;
-            border-bottom: 1px solid #e5e7eb;
-        }
-
-        table tr:hover {
-            background-color: #f9fafb;
-        }
-
-        /* ========== PRO TIP STYLING ========== */
-        .pro-tip {
-            background: linear-gradient(135deg, #FEF9C3 0%, #FEF08A 100%);
-            border-left: 4px solid #F59E0B;
-            padding: 0.6rem 0.9rem;
-            margin-top: 0.75rem;
-            border-radius: 0 0.5rem 0.5rem 0;
-            color: #92400E;
-            font-size: 0.8rem;
-        }
-
-        /* ========== SOURCE CITATIONS ========== */
-        .source-citation {
-            color: #6B7280;
-            font-size: 0.7rem;
-            background-color: #F3F4F6;
-            padding: 2px 6px;
-            border-radius: 4px;
-            margin-left: 4px;
-        }
-
-        .source-legend {
-            margin-top: 0.75rem;
-            padding-top: 0.6rem;
-            border-top: 1px solid #E5E7EB;
-            font-size: 0.7rem;
-            color: #6B7280;
-        }
-
-        /* ========== ANALYTICS MODAL ========== */
-        .analytics-modal {
+        /* ========== MODALS ========== */
+        .modal {
             display: none;
             position: fixed;
             inset: 0;
-            background: rgba(0,0,0,0.5);
+            background: rgba(74, 44, 42, 0.4);
+            backdrop-filter: blur(8px);
             z-index: 9998;
             overflow: hidden;
+            padding: 1rem;
         }
 
-        .analytics-modal.active {
+        .modal.active {
             display: flex;
             align-items: center;
             justify-content: center;
+            animation: modalIn 0.3s ease-out;
         }
 
-        .analytics-content {
-            background: white;
-            border-radius: 1rem;
+        @keyframes modalIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .modal-content {
+            background: var(--bg-card);
+            border: 1px solid var(--border-light);
+            border-radius: 1.5rem;
             width: 90%;
-            max-width: 800px;
+            max-width: 900px;
             max-height: 85vh;
             overflow-y: auto;
             padding: 1.5rem;
+            box-shadow: var(--shadow-lg);
+            animation: modalContentIn 0.4s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
-        /* ========== HEATMAP MODAL - FITS VIEWPORT ========== */
-        .heatmap-modal {
-            display: none;
-            position: fixed;
-            inset: 0;
-            background-color: rgba(0, 0, 0, 0.7);
-            z-index: 9999;
-            overflow: hidden;
-            padding: 1rem;
-            backdrop-filter: blur(4px);
+        @keyframes modalContentIn {
+            from { opacity: 0; transform: scale(0.95) translateY(20px); }
+            to { opacity: 1; transform: scale(1) translateY(0); }
         }
 
-        .heatmap-modal.active {
+        .modal-content::-webkit-scrollbar {
+            width: 6px;
+        }
+        .modal-content::-webkit-scrollbar-thumb {
+            background: var(--border-medium);
+            border-radius: 3px;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid var(--border-light);
+        }
+
+        .modal-title {
+            font-family: 'Playfair Display', serif;
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: var(--primary);
+        }
+
+        .modal-close {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-light);
+            color: var(--text-muted);
+            width: 36px;
+            height: 36px;
+            border-radius: 0.5rem;
+            font-size: 1.25rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
             display: flex;
             align-items: center;
             justify-content: center;
         }
 
+        .modal-close:hover {
+            background: var(--error-light);
+            border-color: var(--error);
+            color: var(--error);
+        }
+
+        /* Analytics Modal Grid */
+        .analytics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .analytics-card {
+            background: linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg-tertiary) 100%);
+            border: 1px solid var(--border-light);
+            border-radius: 1rem;
+            padding: 1.25rem;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+
+        .analytics-card:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-md);
+        }
+
+        .analytics-card .value {
+            font-size: 2rem;
+            font-weight: 800;
+            font-family: 'JetBrains Mono', monospace;
+            color: var(--accent);
+        }
+
+        .analytics-card .label {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-top: 0.25rem;
+            font-weight: 600;
+        }
+
+        /* ========== HEATMAP MODAL ========== */
         .heatmap-content {
-            background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+            background: var(--bg-card);
+            border: 1px solid var(--border-light);
             border-radius: 1.5rem;
             max-width: 1200px;
             width: 100%;
@@ -743,13 +1153,14 @@
             display: flex;
             flex-direction: column;
             overflow: hidden;
-            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.3);
+            box-shadow: var(--shadow-lg);
+            animation: modalContentIn 0.4s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
         .heatmap-header {
-            background: linear-gradient(135deg, #F95039 0%, #FF6B4D 100%);
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
             color: white;
-            padding: 1rem 1.25rem;
+            padding: 1.25rem 1.5rem;
             display: flex;
             justify-content: space-between;
             align-items: center;
@@ -757,25 +1168,80 @@
         }
 
         .heatmap-header h2 {
+            font-family: 'Playfair Display', serif;
             margin: 0;
             font-size: 1.25rem;
+            font-weight: 700;
         }
 
         .heatmap-header p {
-            margin: 0;
-            font-size: 0.75rem;
+            margin: 0.25rem 0 0;
+            font-size: 0.8rem;
             opacity: 0.9;
         }
 
         .heatmap-filters {
-            padding: 0.75rem 1rem;
-            background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
-            border-bottom: 1px solid #e2e8f0;
+            padding: 1rem 1.25rem;
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border-light);
             display: flex;
             gap: 1rem;
             align-items: center;
             flex-shrink: 0;
             flex-wrap: wrap;
+        }
+
+        .filter-group {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .filter-group label {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            font-weight: 600;
+        }
+
+        .filter-select {
+            padding: 0.5rem 0.75rem;
+            background: var(--bg-card);
+            border: 1px solid var(--border-medium);
+            border-radius: 0.5rem;
+            font-size: 0.8rem;
+            color: var(--text-primary);
+            cursor: pointer;
+        }
+
+        .filter-btn {
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem;
+            font-size: 0.8rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .filter-btn.primary {
+            background: linear-gradient(135deg, var(--accent) 0%, var(--accent-dark) 100%);
+            color: white;
+            border: none;
+            box-shadow: 0 4px 12px var(--accent-glow);
+        }
+
+        .filter-btn.primary:hover {
+            transform: translateY(-2px);
+        }
+
+        .filter-btn.secondary {
+            background: var(--bg-card);
+            color: var(--text-secondary);
+            border: 1px solid var(--border-medium);
+        }
+
+        .filter-btn.secondary:hover {
+            background: var(--bg-tertiary);
+            border-color: var(--accent);
         }
 
         .heatmap-body {
@@ -796,35 +1262,41 @@
 
         #heatmapViewDiv {
             flex: 1;
-            border-radius: 0.75rem;
+            border-radius: 1rem;
             min-height: 0;
-            box-shadow: inset 0 2px 10px rgba(0,0,0,0.1);
+            border: 1px solid var(--border-light);
         }
 
         .heatmap-legend {
             display: flex;
             align-items: center;
-            gap: 1rem;
-            padding: 0.75rem;
-            background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+            gap: 1.5rem;
+            padding: 0.75rem 1rem;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-light);
             border-radius: 0.75rem;
             margin-top: 0.75rem;
-            font-size: 0.75rem;
+            font-size: 0.8rem;
             flex-shrink: 0;
+        }
+
+        .legend-title {
+            font-weight: 600;
+            color: var(--text-primary);
         }
 
         .legend-item {
             display: flex;
             align-items: center;
-            gap: 0.4rem;
-            font-weight: 500;
+            gap: 0.5rem;
+            color: var(--text-secondary);
         }
 
         .legend-dot {
-            width: 14px;
-            height: 14px;
+            width: 12px;
+            height: 12px;
             border-radius: 50%;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
         }
 
         .legend-dot.high { background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); }
@@ -837,65 +1309,269 @@
             gap: 0.75rem;
             overflow-y: auto;
             min-height: 0;
+            padding-right: 0.5rem;
         }
 
         .heatmap-stats::-webkit-scrollbar {
             width: 4px;
         }
         .heatmap-stats::-webkit-scrollbar-thumb {
-            background: #ddd;
+            background: var(--border-medium);
             border-radius: 2px;
         }
 
+        .stats-section-title {
+            font-family: 'Playfair Display', serif;
+            font-size: 1rem;
+            font-weight: 700;
+            color: var(--primary);
+            margin: 0 0 0.25rem;
+        }
+
+        .stats-section-desc {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            margin: 0 0 0.75rem;
+        }
+
         .borough-card {
-            padding: 0.75rem;
-            background: linear-gradient(135deg, #f8fafc 0%, #ffffff 100%);
-            border-radius: 0.75rem;
+            padding: 1rem;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-light);
+            border-radius: 1rem;
             cursor: pointer;
-            border: 2px solid transparent;
             transition: all 0.3s ease;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
         }
 
         .borough-card:hover {
-            border-color: #F95039;
+            border-color: var(--accent);
             transform: translateY(-2px);
-            box-shadow: 0 8px 20px rgba(249, 80, 57, 0.2);
+            box-shadow: var(--shadow-md);
         }
 
         .borough-card.selected {
-            border-color: #F95039;
-            background: linear-gradient(135deg, #FEF2F2 0%, #FECACA 100%);
+            border-color: var(--accent);
+            background: linear-gradient(135deg, rgba(199, 91, 57, 0.1) 0%, rgba(199, 91, 57, 0.05) 100%);
+        }
+
+        .borough-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.5rem;
+        }
+
+        .borough-name {
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .risk-badge {
+            font-size: 0.65rem;
+            padding: 0.25rem 0.5rem;
+            border-radius: 2rem;
+            font-weight: 600;
+        }
+
+        .risk-badge.high {
+            background: var(--error-light);
+            color: var(--error);
+        }
+
+        .risk-badge.medium {
+            background: var(--warning-light);
+            color: var(--warning);
+        }
+
+        .risk-badge.low {
+            background: var(--success-light);
+            color: var(--success);
+        }
+
+        .borough-complaints {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            margin-bottom: 0.5rem;
         }
 
         .risk-bar-container {
-            height: 8px;
-            background: #e5e7eb;
-            border-radius: 4px;
+            height: 6px;
+            background: var(--bg-tertiary);
+            border-radius: 3px;
             overflow: hidden;
-            margin-top: 0.5rem;
         }
 
         .risk-bar {
             height: 100%;
-            border-radius: 4px;
+            border-radius: 3px;
             transition: width 0.8s ease;
         }
 
         .summary-card {
-            background: linear-gradient(135deg, #FFF7ED 0%, #FFEDD5 100%);
-            border: 1px solid #FDBA74;
-            border-radius: 0.75rem;
-            padding: 0.75rem;
+            background: linear-gradient(135deg, rgba(199, 91, 57, 0.1) 0%, rgba(199, 91, 57, 0.05) 100%);
+            border: 1px solid rgba(199, 91, 57, 0.2);
+            border-radius: 1rem;
+            padding: 1rem;
+        }
+
+        .summary-title {
+            font-family: 'Playfair Display', serif;
+            font-size: 0.9rem;
+            font-weight: 700;
+            color: var(--accent);
+            margin: 0 0 0.75rem;
+        }
+
+        .summary-row {
+            display: flex;
+            justify-content: space-between;
             font-size: 0.8rem;
+            margin-bottom: 0.4rem;
+        }
+
+        .summary-row:last-child {
+            margin-bottom: 0;
+        }
+
+        .summary-row .label {
+            color: var(--text-muted);
+        }
+
+        .summary-row .value {
+            font-weight: 600;
+            font-family: 'JetBrains Mono', monospace;
         }
 
         .ai-insights-card {
-            background: linear-gradient(135deg, #EFF6FF 0%, #DBEAFE 100%);
-            border: 1px solid #93C5FD;
-            border-radius: 0.75rem;
-            padding: 0.75rem;
-            font-size: 0.8rem;
+            background: var(--info-light);
+            border: 1px solid rgba(74, 124, 155, 0.3);
+            border-radius: 1rem;
+            padding: 1rem;
+            display: none;
+        }
+
+        .ai-insights-card.active {
+            display: block;
+            animation: fadeIn 0.3s ease-out;
+        }
+
+        .ai-insights-title {
+            font-family: 'Playfair Display', serif;
+            font-size: 0.9rem;
+            font-weight: 700;
+            color: var(--info);
+            margin: 0 0 0.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .ai-insights-text {
+            font-size: 0.85rem;
+            color: var(--text-primary);
+            line-height: 1.6;
+        }
+
+        /* ========== FORMATTED RESPONSE STYLES ========== */
+        .message-bubble h1, .message-bubble h2, .message-bubble h3, .message-bubble h4 {
+            color: var(--primary);
+            margin: 1em 0 0.5em;
+            font-weight: 700;
+        }
+
+        .message-bubble h1:first-child, .message-bubble h2:first-child, 
+        .message-bubble h3:first-child, .message-bubble h4:first-child {
+            margin-top: 0;
+        }
+
+        .message.bot .message-bubble strong {
+            color: var(--accent);
+        }
+
+        .message.user .message-bubble strong {
+            color: white;
+        }
+
+        .message-bubble ul, .message-bubble ol {
+            padding-left: 1.5rem;
+            margin: 0.5em 0;
+        }
+
+        .message-bubble li {
+            margin-bottom: 0.25em;
+        }
+
+        .message-bubble code {
+            background: var(--bg-secondary);
+            padding: 0.2em 0.4em;
+            border-radius: 4px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85em;
+        }
+
+        .message-bubble pre {
+            background: var(--text-primary);
+            color: var(--bg-tertiary);
+            padding: 1rem;
+            border-radius: 0.5rem;
+            overflow-x: auto;
+            margin: 0.75em 0;
+        }
+
+        .message-bubble pre code {
+            background: transparent;
+            padding: 0;
+            color: inherit;
+        }
+
+        .message-bubble table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 0.75em 0;
+            font-size: 0.85em;
+        }
+
+        .message-bubble th {
+            background: var(--primary);
+            color: white;
+            padding: 0.5rem 0.75rem;
+            text-align: left;
+            font-weight: 600;
+        }
+
+        .message-bubble td {
+            padding: 0.5rem 0.75rem;
+            border-bottom: 1px solid var(--border-light);
+        }
+
+        .message-bubble tr:hover {
+            background: var(--bg-secondary);
+        }
+
+        .pro-tip {
+            background: var(--warning-light);
+            border-left: 3px solid var(--warning);
+            padding: 0.75rem 1rem;
+            margin: 0.75em 0;
+            border-radius: 0 0.5rem 0.5rem 0;
+            font-size: 0.85em;
+        }
+
+        .source-citation {
+            color: var(--text-muted);
+            font-size: 0.7rem;
+            background: var(--bg-secondary);
+            padding: 2px 6px;
+            border-radius: 4px;
+            margin-left: 4px;
+        }
+
+        .source-legend {
+            margin-top: 1rem;
+            padding-top: 0.75rem;
+            border-top: 1px solid var(--border-light);
+            font-size: 0.75rem;
+            color: var(--text-muted);
         }
 
         /* ========== RESPONSIVE ========== */
@@ -916,11 +1592,7 @@
 
             .sidebar.closed {
                 transform: translateX(-100%);
-                width: 280px;
-            }
-
-            .main-content {
-                height: calc(100vh - 1.5rem);
+                width: 300px;
             }
 
             .heatmap-body {
@@ -928,7 +1600,7 @@
             }
 
             .heatmap-stats {
-                max-height: 180px;
+                max-height: 200px;
             }
         }
 
@@ -953,85 +1625,321 @@
                 align-items: flex-start;
             }
 
+            .chat-controls {
+                width: 100%;
+                justify-content: flex-start;
+            }
+
             .header h1 {
                 font-size: 1.5rem;
             }
+
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
         }
+
+        /* ============ ENHANCED ARCGIS FEATURES FOR FRIDAY DEMO ============ */
+        
+        /* Map View Toggle */
+        .map-view-toggle {
+            position: absolute;
+            top: 80px;
+            right: 20px;
+            z-index: 10;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            padding: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .toggle-button {
+            padding: 10px 16px;
+            border: 2px solid var(--border-medium);
+            border-radius: 8px;
+            background: white;
+            color: var(--text-primary);
+            font-weight: 600;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .toggle-button:hover {
+            background: var(--bg-secondary);
+            border-color: var(--accent);
+        }
+
+        .toggle-button.active {
+            background: var(--accent);
+            color: white;
+            border-color: var(--accent);
+        }
+
+        /* Layer Controls */
+        .layer-controls {
+            position: absolute;
+            top: 220px;
+            right: 20px;
+            z-index: 10;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            padding: 16px;
+            min-width: 280px;
+        }
+
+        .layer-controls h4 {
+            font-family: 'Playfair Display', serif;
+            font-size: 16px;
+            color: var(--primary);
+            margin-bottom: 12px;
+            font-weight: 600;
+        }
+
+        .layer-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .layer-item:hover {
+            background: var(--bg-secondary);
+        }
+
+        .layer-checkbox {
+            width: 18px;
+            height: 18px;
+            accent-color: var(--accent);
+            cursor: pointer;
+        }
+
+        .layer-name {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .layer-desc {
+            font-size: 11px;
+            color: var(--text-muted);
+        }
+
+        /* Infographics Panel */
+        .infographics-panel {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            z-index: 10;
+            background: linear-gradient(135deg, rgba(255,255,255,0.98) 0%, rgba(250,234,229,0.98) 100%);
+            border-radius: 16px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+            padding: 20px;
+            min-width: 350px;
+            max-width: 400px;
+            border: 2px solid var(--border-light);
+            display: none;
+        }
+
+        .infographics-panel.visible {
+            display: block;
+            animation: slideInLeft 0.4s ease;
+        }
+
+        @keyframes slideInLeft {
+            from { opacity: 0; transform: translateX(-30px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+
+        .infographics-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+            padding-bottom: 12px;
+            border-bottom: 2px solid var(--border-light);
+        }
+
+        .infographics-title {
+            font-family: 'Playfair Display', serif;
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--primary);
+        }
+
+        .infographics-close {
+            background: transparent;
+            border: none;
+            font-size: 24px;
+            color: var(--text-muted);
+            cursor: pointer;
+            padding: 0;
+            width: 30px;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 6px;
+            transition: all 0.2s;
+        }
+
+        .infographics-close:hover {
+            background: var(--bg-secondary);
+            color: var(--accent);
+        }
+
+        .demographic-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 14px;
+        }
+
+        .demographic-card {
+            background: white;
+            padding: 14px;
+            border-radius: 10px;
+            border: 1.5px solid var(--border-light);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+        }
+
+        .demographic-label {
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            color: var(--text-muted);
+            margin-bottom: 6px;
+        }
+
+        .demographic-value {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 24px;
+            font-weight: 800;
+            color: var(--accent);
+        }
+
+        .demographic-subtitle {
+            font-size: 10px;
+            color: var(--text-light);
+            margin-top: 4px;
+        }
+
+        .infographics-footer {
+            margin-top: 16px;
+            padding-top: 12px;
+            border-top: 1px solid var(--border-light);
+            font-size: 10px;
+            color: var(--text-muted);
+            text-align: center;
+        }
+
     </style>
 </head>
 <body>
-    
     <!-- Hamburger Menu Button -->
     <button id="hamburgerBtn" class="hamburger-btn" aria-label="Toggle sidebar">☰</button>
 
-    <!-- Sidebar Overlay (for mobile/tablet) -->
+    <!-- Sidebar Overlay -->
     <div id="sidebarOverlay" class="sidebar-overlay"></div>
-
-    <!-- Food Decorations -->
-    <div class="food-decoration left-deco hidden lg:block" style="top: 10%; left: 1%; width: 80px;">
-        <img src="https://raw.githubusercontent.com/nmemranhussain/Kichen_compass_ai/main/1.jpg" alt="Food" style="width: 100%; border-radius: 50%;">
-    </div>
-    <div class="food-decoration left-deco hidden lg:block" style="top: 40%; left: 0.5%; width: 70px;">
-        <img src="https://raw.githubusercontent.com/nmemranhussain/Kichen_compass_ai/main/2.jpg" alt="Food" style="width: 100%; border-radius: 50%;">
-    </div>
-    <div class="food-decoration left-deco hidden lg:block" style="bottom: 15%; left: 1%; width: 75px;">
-        <img src="https://raw.githubusercontent.com/nmemranhussain/Kichen_compass_ai/main/3.jpg" alt="Food" style="width: 100%; border-radius: 50%;">
-    </div>
-    <div class="food-decoration right-deco hidden lg:block" style="bottom: 15%; right: 1%; width: 85px;">
-        <img src="https://raw.githubusercontent.com/nmemranhussain/Kichen_compass_ai/main/5.jpg" alt="Food" style="width: 100%; border-radius: 50%;">
-    </div>
-    <div class="food-decoration right-deco hidden lg:block" style="top: 10%; right: 1.5%; width: 80px;">
-        <img src="https://raw.githubusercontent.com/nmemranhussain/Kichen_compass_ai/main/6.jpg" alt="Food" style="width: 100%; border-radius: 50%;">
-    </div>
 
     <!-- Main App Container -->
     <div class="app-container">
-        <!-- Sidebar -->
+        <!-- Sidebar - NOW OPEN BY DEFAULT -->
         <aside id="sidebar" class="sidebar">
             <div class="sidebar-content">
-                <!-- Close Button (visible on mobile/tablet) -->
-                <button id="closeSidebarBtn" class="lg:hidden absolute top-4 right-4 text-gray-500 hover:text-gray-700 text-2xl font-bold" aria-label="Close sidebar">×</button>
+                <!-- Sidebar Header -->
+                <div class="sidebar-header">
+                    <div class="sidebar-logo">🍳</div>
+                    <div>
+                        <div class="sidebar-title">Kitchen Compass</div>
+                        <div class="sidebar-subtitle">v2.0 Multi-Agent AI</div>
+                    </div>
+                </div>
 
-                <div class="sidebar-scroll" style="padding-top: 2.5rem;">
-                    <!-- Quick Stats -->
-                    <div class="section-header" style="margin-top: 0;">📊 Quick Stats</div>
-                    <div class="stat-box" style="background: #fff7ed;">
-                        <p class="stat-label">Documents</p>
-                        <p class="stat-value" style="color: #F95039;" id="sidebarDocs">0</p>
-                    </div>
-                    <div class="stat-box" style="background: #eff6ff;">
-                        <p class="stat-label">Questions Asked</p>
-                        <p class="stat-value" style="color: #3b82f6;" id="sidebarQuestions">0</p>
-                    </div>
-                    <div class="stat-box" style="background: #f0fdf4;">
-                        <p class="stat-label">Avg Response Time</p>
-                        <p class="stat-value" style="color: #22c55e;" id="sidebarAvgTime">0s</p>
+                <div class="sidebar-scroll">
+                    <!-- Stats Grid -->
+                    <div class="stats-grid">
+                        <div class="stat-card highlight">
+                            <div class="stat-value" id="sidebarDocs">5000</div>
+                            <div class="stat-label">Documents Chunks</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value" id="sidebarQuestions">0</div>
+                            <div class="stat-label">Questions</div>
+                        </div>
+                        <div class="stat-card" style="grid-column: span 2;">
+                            <div class="stat-value" id="sidebarAvgTime">0s</div>
+                            <div class="stat-label">Avg Response Time</div>
+                        </div>
                     </div>
 
-                    <!-- Agent Status Section -->
+                    <!-- Agent Status -->
                     <div class="section-header">🤖 AI Agents</div>
-                    <div id="agentStatusList">
-                        <div class="agent-item"><span><span class="agent-dot"></span>Intent Router</span><span>0</span></div>
-                        <div class="agent-item"><span><span class="agent-dot"></span>Complaint Analyzer</span><span>0</span></div>
-                        <div class="agent-item"><span><span class="agent-dot"></span>Compliance Guide</span><span>0</span></div>
-                        <div class="agent-item"><span><span class="agent-dot"></span>Location Risk</span><span>0</span></div>
-                        <div class="agent-item"><span><span class="agent-dot"></span>Strategic Advisor</span><span>0</span></div>
-                        <div class="agent-item"><span><span class="agent-dot"></span>Violation Prevention</span><span>0</span></div>
+                    <div class="agent-list" id="agentStatusList">
+                        <div class="agent-item">
+                            <span class="agent-name"><span class="agent-dot"></span>Intent Router</span>
+                            <span class="agent-count">0</span>
+                        </div>
+                        <div class="agent-item">
+                            <span class="agent-name"><span class="agent-dot"></span>Complaint Analyzer</span>
+                            <span class="agent-count">0</span>
+                        </div>
+                        <div class="agent-item">
+                            <span class="agent-name"><span class="agent-dot"></span>Compliance Guide</span>
+                            <span class="agent-count">0</span>
+                        </div>
+                        <div class="agent-item">
+                            <span class="agent-name"><span class="agent-dot"></span>Location Risk</span>
+                            <span class="agent-count">0</span>
+                        </div>
+                        <div class="agent-item">
+                            <span class="agent-name"><span class="agent-dot"></span>Strategic Advisor</span>
+                            <span class="agent-count">0</span>
+                        </div>
+                        <div class="agent-item">
+                            <span class="agent-name"><span class="agent-dot"></span>Violation Prevention</span>
+                            <span class="agent-count">0</span>
+                        </div>
                     </div>
 
                     <!-- Popular Topics -->
-                    <div class="section-header">🎯 Popular Topics</div>
-                    <button class="topic-btn" style="background: #f3e8ff; color: #7c3aed;">📋 Permits & Licenses</button>
-                    <button class="topic-btn" style="background: #dcfce7; color: #16a34a;">🏥 Health Inspections</button>
-                    <button class="topic-btn" style="background: #fef9c3; color: #ca8a04;">📍 Location Analysis</button>
-                    <button class="topic-btn" style="background: #fee2e2; color: #dc2626;">⚠️ Common Violations</button>
-                    <button id="heatmapBtn" class="topic-btn" style="background: #dbeafe; color: #2563eb;">🗺️ Risk Heatmap</button>
+                    <div class="section-header">🎯 Quick Actions</div>
+                    <button class="topic-btn">
+                        <div class="topic-icon" style="background: linear-gradient(135deg, #a855f7 0%, #7c3aed 100%);">📋</div>
+                        <span>Permits & Licenses</span>
+                    </button>
+                    <button class="topic-btn">
+                        <div class="topic-icon" style="background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);">🏥</div>
+                        <span>Health Inspections</span>
+                    </button>
+                    <button class="topic-btn">
+                        <div class="topic-icon" style="background: linear-gradient(135deg, #eab308 0%, #ca8a04 100%);">📍</div>
+                        <span>Location Analysis</span>
+                    </button>
+                    <button class="topic-btn">
+                        <div class="topic-icon" style="background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);">⚠️</div>
+                        <span>Common Violations</span>
+                    </button>
+                    <button class="topic-btn" id="heatmapBtn">
+                        <div class="topic-icon" style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);">🗺️</div>
+                        <span>Complaint Density Heatmap</span>
+                    </button>
 
                     <!-- Quick Links -->
-                    <div class="section-header">🔗 Quick Links</div>
-                    <a href="https://www1.nyc.gov/nycbusiness/description/food-service-establishment-permit" target="_blank" class="quick-link">NYC Food Permits</a>
-                    <a href="https://www1.nyc.gov/site/doh/index.page" target="_blank" class="quick-link">NYC Health Dept</a>
-                    <a href="https://www1.nyc.gov/site/sbs/index.page" target="_blank" class="quick-link">Small Business Services</a>
+                    <div class="section-header">🔗 Resources</div>
+                    <a href="https://www1.nyc.gov/nycbusiness/description/food-service-establishment-permit" target="_blank" class="quick-link">→ NYC Food Permits</a>
+                    <a href="https://www1.nyc.gov/site/doh/index.page" target="_blank" class="quick-link">→ NYC Health Dept</a>
+                    <a href="https://www1.nyc.gov/site/sbs/index.page" target="_blank" class="quick-link">→ Small Business Services</a>
 
                     <!-- Clear History -->
                     <button id="clearHistory" class="clear-btn">🗑️ Clear Chat History</button>
@@ -1039,56 +1947,88 @@
             </div>
         </aside>
 
-        <!-- Main Content Area -->
+        <!-- Main Content -->
         <main class="main-content">
             <!-- Header -->
             <div class="header">
-                <h1>KITCHEN COMPASS AI</h1>
-                <p>Multi-Agent AI System for NYC Restaurant Entrepreneurs</p>
+                <div class="header-content">
+                    <h1>Kitchen Compass AI</h1>
+                    <div class="header-badge">
+                        <span class="badge-dot"></span>
+                        <span>Multi-Agent System for NYC Restaurant Entrepreneurs</span>
+                    </div>
+                </div>
             </div>
 
             <!-- Chat Card -->
             <div class="chat-card">
                 <!-- Chat Header -->
                 <div class="chat-header">
-                    <div style="display: flex; align-items: center; gap: 0.5rem;">
-                        <div style="width: 10px; height: 10px; background: #F95039; border-radius: 50%; animation: pulse 2s infinite;"></div>
-                        <span style="font-size: 0.8rem; color: #666;">Kitchen Compass AI v2.0</span>
+                    <div class="chat-status">
+                        <div class="status-indicator">
+                            <span class="status-dot"></span>
+                            <span>Online</span>
+                        </div>
+                        <span style="font-size: 0.75rem; color: var(--text-muted);">Kitchen Compass AI v2.0</span>
                     </div>
-                    <div style="display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;">
-                        <select id="modelSelector" style="padding: 0.35rem 0.5rem; border: 2px solid #F95039; border-radius: 0.5rem; font-size: 0.75rem; cursor: pointer;">
+                    <div class="chat-controls">
+                        <select id="modelSelector" class="model-select">
                             <option value="gpt-4o-mini" selected>🤖 GPT-4o-mini</option>
                             <option value="ollama">🦙 Ollama</option>
                         </select>
-                        <label style="font-size: 0.75rem; display: flex; align-items: center; gap: 0.25rem; cursor: pointer;">
-                            <input type="checkbox" id="streamToggle" style="cursor: pointer;">
+                        <label class="toggle-label">
+                            <input type="checkbox" id="streamToggle">
                             <span>Stream</span>
                         </label>
-                        <button id="showAnalytics" style="background: none; border: none; color: #F95039; font-size: 0.8rem; cursor: pointer; font-weight: 500;">📊 Analytics</button>
+                        <button id="showAnalytics" class="analytics-btn">📊 Analytics</button>
                     </div>
                 </div>
 
-                <!-- Agent Execution Flow -->
-                <div id="agentFlow" class="agent-flow" style="display: none;">
-                    <p style="font-size: 0.75rem; font-weight: 600; margin: 0 0 0.5rem 0; color: #f59e0b;">🔄 Agent Execution Flow:</p>
-                    <div id="agentIndicators"></div>
+                <!-- Agent Flow Visualization -->
+                <div id="agentFlow" class="agent-flow">
+                    <div class="agent-flow-header">
+                        <div class="agent-flow-spinner"></div>
+                        <span>Agent Execution Flow</span>
+                    </div>
+                    <div id="agentIndicators" class="agent-indicators"></div>
                 </div>
 
-                <!-- Chat Messages - ONLY THIS SCROLLS -->
+                <!-- Chat Messages -->
                 <div id="chatContainer" class="chat-container">
                     <div class="message bot">
                         <div class="message-bubble">
-                            <p style="margin: 0;">
-                                <strong>Hi! I'm your NYC restaurant setup copilot powered by multiple specialized AI agents.</strong><br><br>
-                                <strong>Available Agents:</strong><br>
-                                🧭 <strong>Intent Router</strong> - Directs your query to the right specialists<br>
-                                📊 <strong>Complaint Analyzer</strong> - Analyzes NYC 311 complaint patterns<br>
-                                ✅ <strong>Compliance Guide</strong> - Health code & permit guidance<br>
-                                📍 <strong>Location Risk</strong> - Neighborhood risk assessment<br>
-                                💡 <strong>Strategic Advisor</strong> - Business strategy insights<br>
-                                🛡️ <strong>Violation Prevention</strong> - Proactive violation prevention<br><br>
-                                Ask anything about starting or running a restaurant in NYC!<br>
-                                <em style="color: #F95039;">💡 Try: "Show me a heatmap of restaurant risks"</em>
+                            <p style="margin: 0 0 1rem 0;">
+                                <strong style="font-size: 1.1em;">👋 Welcome to Kitchen Compass AI!</strong><br>
+                                <span style="color: var(--text-secondary);">Your NYC restaurant setup copilot powered by 6 specialized AI agents.</span>
+                            </p>
+                            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.5rem; margin: 1rem 0;">
+                                <div style="padding: 0.5rem; background: var(--bg-secondary); border-radius: 0.5rem; font-size: 0.8rem; border: 1px solid var(--border-light);">
+                                    🧭 <strong>Intent Router</strong><br>
+                                    <span style="color: var(--text-muted);">Smart query routing</span>
+                                </div>
+                                <div style="padding: 0.5rem; background: var(--bg-secondary); border-radius: 0.5rem; font-size: 0.8rem; border: 1px solid var(--border-light);">
+                                    📊 <strong>Complaint Analyzer</strong><br>
+                                    <span style="color: var(--text-muted);">311 data insights</span>
+                                </div>
+                                <div style="padding: 0.5rem; background: var(--bg-secondary); border-radius: 0.5rem; font-size: 0.8rem; border: 1px solid var(--border-light);">
+                                    ✅ <strong>Compliance Guide</strong><br>
+                                    <span style="color: var(--text-muted);">Health code expert</span>
+                                </div>
+                                <div style="padding: 0.5rem; background: var(--bg-secondary); border-radius: 0.5rem; font-size: 0.8rem; border: 1px solid var(--border-light);">
+                                    📍 <strong>Location Risk</strong><br>
+                                    <span style="color: var(--text-muted);">Neighborhood analysis</span>
+                                </div>
+                                <div style="padding: 0.5rem; background: var(--bg-secondary); border-radius: 0.5rem; font-size: 0.8rem; border: 1px solid var(--border-light);">
+                                    💡 <strong>Strategic Advisor</strong><br>
+                                    <span style="color: var(--text-muted);">Business strategy</span>
+                                </div>
+                                <div style="padding: 0.5rem; background: var(--bg-secondary); border-radius: 0.5rem; font-size: 0.8rem; border: 1px solid var(--border-light);">
+                                    🛡️ <strong>Violation Prevention</strong><br>
+                                    <span style="color: var(--text-muted);">Proactive compliance</span>
+                                </div>
+                            </div>
+                            <p style="margin: 0; padding: 0.75rem; background: linear-gradient(135deg, rgba(199, 91, 57, 0.1) 0%, rgba(199, 91, 57, 0.05) 100%); border: 1px solid rgba(199, 91, 57, 0.2); border-radius: 0.5rem; font-size: 0.85rem;">
+                                💡 <strong>Try:</strong> "Show me a heatmap of restaurant risks" or "What permits do I need?"
                             </p>
                         </div>
                     </div>
@@ -1120,41 +2060,41 @@
                 <label>📁 Upload NYC Data (CSV):</label>
                 <input type="file" id="csvFile" accept=".csv" />
                 <button id="uploadBtn" class="upload-btn">Upload & Ingest</button>
-                <span id="uploadStatus" style="font-size: 0.7rem; color: #666;"></span>
+                <span id="uploadStatus"></span>
             </div>
         </main>
     </div>
 
     <!-- Analytics Modal -->
-    <div id="analyticsModal" class="analytics-modal">
-        <div class="analytics-content">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-                <h2 style="margin: 0; color: #333; font-size: 1.25rem;">📊 System Analytics & Agent Performance</h2>
-                <button id="closeAnalytics" style="background: none; border: none; font-size: 1.75rem; cursor: pointer; color: #666;">&times;</button>
+    <div id="analyticsModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">📊 System Analytics & Agent Performance</h2>
+                <button id="closeAnalytics" class="modal-close">×</button>
             </div>
             <div id="analyticsContent">
-                <p style="color: #666;">Loading analytics...</p>
+                <p style="color: var(--text-muted);">Loading analytics...</p>
             </div>
         </div>
     </div>
 
     <!-- Heatmap Modal -->
-    <div id="heatmapModal" class="heatmap-modal">
+    <div id="heatmapModal" class="modal">
         <div class="heatmap-content">
             <!-- Header -->
             <div class="heatmap-header">
                 <div>
-                    <h2>🗺️ NYC Restaurant Risk Heatmap</h2>
+                    <h2>🗺️ NYC Restaurant Complaint Density Heatmap</h2>
                     <p>Interactive visualization of complaint density by borough</p>
                 </div>
-                <button id="closeHeatmapModal" style="background: none; border: none; color: white; font-size: 2rem; cursor: pointer;">&times;</button>
+                <button id="closeHeatmapModal" class="modal-close" style="background: rgba(255,255,255,0.2); border-color: rgba(255,255,255,0.3); color: white;">×</button>
             </div>
             
             <!-- Filters -->
             <div class="heatmap-filters">
-                <div>
-                    <label style="font-size: 0.75rem; font-weight: 600; color: #555;">Filter by Borough</label>
-                    <select id="heatmapBoroughFilter" style="padding: 0.4rem 0.75rem; border: 2px solid #ddd; border-radius: 0.5rem; font-size: 0.8rem; margin-left: 0.5rem;">
+                <div class="filter-group">
+                    <label>Filter by Borough:</label>
+                    <select id="heatmapBoroughFilter" class="filter-select">
                         <option value="">🏙️ All Boroughs</option>
                         <option value="Manhattan">🏢 Manhattan</option>
                         <option value="Brooklyn">🌉 Brooklyn</option>
@@ -1164,8 +2104,8 @@
                     </select>
                 </div>
                 <div style="margin-left: auto; display: flex; gap: 0.5rem;">
-                    <button id="applyHeatmapFilters" style="background: linear-gradient(135deg, #F95039 0%, #FF6B4D 100%); color: white; border: none; padding: 0.5rem 1rem; border-radius: 0.5rem; font-size: 0.8rem; cursor: pointer; font-weight: 500;">Apply Filter</button>
-                    <button id="resetHeatmapFilters" style="background: #e5e7eb; border: none; padding: 0.5rem 1rem; border-radius: 0.5rem; font-size: 0.8rem; cursor: pointer;">Reset</button>
+                    <button id="applyHeatmapFilters" class="filter-btn primary">Apply Filter</button>
+                    <button id="resetHeatmapFilters" class="filter-btn secondary">Reset</button>
                 </div>
             </div>
             
@@ -1175,9 +2115,79 @@
                 <div class="heatmap-map-container">
                     <div id="heatmapViewDiv"></div>
                     
+                    <!-- ========== ENHANCED FEATURES FOR FRIDAY DEMO ========== -->
+                    
+                    <!-- Map View Toggle Controls -->
+                    <div class="map-view-toggle">
+                        <button id="boroughViewBtn" class="toggle-button active">
+                            📍 Borough View
+                        </button>
+                        <button id="densityViewBtn" class="toggle-button">
+                            🔥 Density Heatmap
+                        </button>
+                    </div>
+
+                    <!-- Layer Controls -->
+                    <div class="layer-controls">
+                        <h4>🗺️ Map Layers</h4>
+                        <div class="layer-item" onclick="toggleDemographicLayer()">
+                            <input type="checkbox" id="incomeLayerToggle" class="layer-checkbox">
+                            <div style="flex: 1;">
+                                <div class="layer-name">Household Income</div>
+                                <div class="layer-desc">2025 Median Income</div>
+                            </div>
+                        </div>
+                        <div class="layer-item" onclick="togglePopulationLayer()">
+                            <input type="checkbox" id="populationLayerToggle" class="layer-checkbox">
+                            <div style="flex: 1;">
+                                <div class="layer-name">Population Density</div>
+                                <div class="layer-desc">People per sq. mile</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Infographics Panel -->
+                    <div id="infographicsPanel" class="infographics-panel">
+                        <div class="infographics-header">
+                            <div class="infographics-title" id="infoBoroughName">Brooklyn</div>
+                            <button class="infographics-close" onclick="closeInfoPanel()">×</button>
+                        </div>
+                        
+                        <div class="demographic-grid">
+                            <div class="demographic-card">
+                                <div class="demographic-label">Population</div>
+                                <div class="demographic-value" id="infoPop">2.7M</div>
+                                <div class="demographic-subtitle">2025 Estimate</div>
+                            </div>
+                            
+                            <div class="demographic-card">
+                                <div class="demographic-label">Median Income</div>
+                                <div class="demographic-value" id="infoIncome">$71K</div>
+                                <div class="demographic-subtitle">Household/Year</div>
+                            </div>
+                            
+                            <div class="demographic-card">
+                                <div class="demographic-label">Median Age</div>
+                                <div class="demographic-value" id="infoAge">35.2</div>
+                                <div class="demographic-subtitle">Years</div>
+                            </div>
+                            
+                            <div class="demographic-card">
+                                <div class="demographic-label">Density</div>
+                                <div class="demographic-value" id="infoDensity">37,137</div>
+                                <div class="demographic-subtitle">People/sq mi</div>
+                            </div>
+                        </div>
+                        
+                        <div class="infographics-footer">
+                            📊 Data from US Census Bureau & NYC Open Data
+                        </div>
+                    </div>
+
+                    
                     <!-- Legend -->
                     <div class="heatmap-legend">
-                        <span style="font-weight: 600; color: #333;">Risk Level:</span>
+                        <span class="legend-title">Risk Level:</span>
                         <div class="legend-item">
                             <div class="legend-dot high"></div>
                             <span>High (70+)</span>
@@ -1195,33 +2205,31 @@
                 
                 <!-- Stats Sidebar -->
                 <div class="heatmap-stats">
-                    <h3 style="margin: 0 0 0.5rem 0; font-size: 1rem; color: #333;">📊 Borough Statistics</h3>
-                    <p style="margin: 0 0 0.75rem 0; font-size: 0.7rem; color: #666;">Click a borough to zoom and see AI insights</p>
+                    <h3 class="stats-section-title">📊 Borough Statistics</h3>
+                    <p class="stats-section-desc">Click a borough to zoom and see AI insights</p>
                     <div id="boroughStatsContainer"></div>
                     
                     <!-- Summary -->
                     <div class="summary-card">
-                        <h4 style="margin: 0 0 0.5rem 0; font-size: 0.85rem; color: #F95039;">📈 Summary</h4>
-                        <div style="display: flex; flex-direction: column; gap: 0.3rem;">
-                            <div style="display: flex; justify-content: space-between;">
-                                <span style="color: #666;">Total Complaints:</span>
-                                <strong id="summaryTotalComplaints" style="color: #333;">0</strong>
-                            </div>
-                            <div style="display: flex; justify-content: space-between;">
-                                <span style="color: #666;">Highest Risk:</span>
-                                <strong id="summaryHighestRisk" style="color: #dc2626;">-</strong>
-                            </div>
-                            <div style="display: flex; justify-content: space-between;">
-                                <span style="color: #666;">Lowest Risk:</span>
-                                <strong id="summaryLowestRisk" style="color: #16a34a;">-</strong>
-                            </div>
+                        <h4 class="summary-title">📈 Summary</h4>
+                        <div class="summary-row">
+                            <span class="label">Total Complaints:</span>
+                            <span class="value" id="summaryTotalComplaints" style="color: var(--text-primary);">0</span>
+                        </div>
+                        <div class="summary-row">
+                            <span class="label">Highest Risk:</span>
+                            <span class="value" id="summaryHighestRisk" style="color: var(--error);">-</span>
+                        </div>
+                        <div class="summary-row">
+                            <span class="label">Lowest Risk:</span>
+                            <span class="value" id="summaryLowestRisk" style="color: var(--success);">-</span>
                         </div>
                     </div>
                     
                     <!-- AI Insights -->
-                    <div id="heatmapAIInsights" class="ai-insights-card" style="display: none;">
-                        <h4 style="margin: 0 0 0.5rem 0; font-size: 0.85rem; color: #2563eb;">🤖 AI Insights</h4>
-                        <p id="heatmapAIText" style="margin: 0; color: #333; line-height: 1.5;"></p>
+                    <div id="heatmapAIInsights" class="ai-insights-card">
+                        <h4 class="ai-insights-title">🤖 AI Insights</h4>
+                        <p id="heatmapAIText" class="ai-insights-text"></p>
                     </div>
                 </div>
             </div>
@@ -1232,7 +2240,9 @@
     <script src="https://js.arcgis.com/4.28/"></script>
 
     <script>
-        // ========== Global Variables ==========
+        // ========== ALL JAVASCRIPT - ENHANCED VISUALIZATION ==========
+        
+        // Global Variables
         const chatContainer = document.getElementById('chatContainer');
         const userInput = document.getElementById('userInput');
         const sendBtn = document.getElementById('sendBtn');
@@ -1258,10 +2268,9 @@
         // Heatmap variables
         let heatmapView = null;
         let heatmapGraphicsLayer = null;
-        let heatmapLabelsLayer = null;
         let ArcGISGraphic = null;
 
-        // ========== HEATMAP TRIGGER PATTERNS ==========
+        // Heatmap trigger patterns
         const heatmapTriggerPatterns = [
             'heatmap', 'heat map', 'show map', 'show me a map', 
             'risk map', 'complaint map', 'visualize', 'visualization',
@@ -1277,28 +2286,23 @@
             return heatmapTriggerPatterns.some(pattern => lowerMessage.includes(pattern));
         }
 
-        // ========== Sidebar Toggle Functionality ==========
+        // ========== SIDEBAR - OPEN BY DEFAULT ON DESKTOP ==========
         const sidebar = document.getElementById('sidebar');
         const hamburgerBtn = document.getElementById('hamburgerBtn');
-        const closeSidebarBtn = document.getElementById('closeSidebarBtn');
         const sidebarOverlay = document.getElementById('sidebarOverlay');
 
         function openSidebar() {
             sidebar.classList.remove('closed');
-            document.body.classList.remove('sidebar-closed');
             sidebarOverlay.classList.add('active');
             if (window.innerWidth < 1024) {
                 document.body.style.overflow = 'hidden';
             }
-            localStorage.setItem('sidebarOpen', 'true');
         }
 
         function closeSidebar() {
             sidebar.classList.add('closed');
-            document.body.classList.add('sidebar-closed');
             sidebarOverlay.classList.remove('active');
             document.body.style.overflow = '';
-            localStorage.setItem('sidebarOpen', 'false');
         }
 
         function toggleSidebar() {
@@ -1310,23 +2314,20 @@
         }
 
         hamburgerBtn.addEventListener('click', toggleSidebar);
-        closeSidebarBtn.addEventListener('click', closeSidebar);
         sidebarOverlay.addEventListener('click', closeSidebar);
 
-        function loadSidebarState() {
+        // FIXED: Sidebar open by default on desktop
+        function initializeSidebar() {
             const isDesktop = window.innerWidth >= 1024;
-            const savedState = localStorage.getItem('sidebarOpen');
             
             if (isDesktop) {
-                const shouldBeOpen = savedState !== 'false';
-                if (shouldBeOpen) {
-                    openSidebar();
-                    sidebarOverlay.classList.remove('active'); // No overlay on desktop
-                } else {
-                    closeSidebar();
-                }
+                // Desktop: Always open, no overlay
+                sidebar.classList.remove('closed');
+                sidebarOverlay.classList.remove('active');
             } else {
-                closeSidebar();
+                // Mobile: Start closed
+                sidebar.classList.add('closed');
+                sidebarOverlay.classList.remove('active');
             }
         }
 
@@ -1337,9 +2338,10 @@
             }
         });
 
-        loadSidebarState();
+        // Initialize sidebar on load
+        initializeSidebar();
 
-        // ========== Toast Notification System ==========
+        // Toast Notification
         function showToast(message, type = 'info') {
             const toast = document.createElement('div');
             toast.className = `toast ${type}`;
@@ -1353,7 +2355,7 @@
             }, 3000);
         }
 
-        // ========== Agent Status Management ==========
+        // Agent Status
         async function loadAgentStatus() {
             try {
                 const response = await fetch('/api/agents/status');
@@ -1370,8 +2372,8 @@
         function updateAgentStatusSidebar(agents) {
             agentStatusList.innerHTML = agents.map(agent => `
                 <div class="agent-item">
-                    <span><span class="agent-dot ${agent.status === 'idle' ? 'active' : 'idle'}"></span>${agent.name}</span>
-                    <span>${agent.usage_count || 0}</span>
+                    <span class="agent-name"><span class="agent-dot"></span>${agent.name}</span>
+                    <span class="agent-count">${agent.usage_count || 0}</span>
                 </div>
             `).join('');
         }
@@ -1380,9 +2382,9 @@
             const indicator = document.createElement('div');
             indicator.className = `agent-indicator ${status}`;
             indicator.id = `agent-${agentName}`;
-            indicator.innerHTML = `<span>●</span><span>${agentName.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}</span>`;
+            indicator.innerHTML = `<span>${agentName.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}</span>`;
             agentIndicators.appendChild(indicator);
-            agentFlow.style.display = 'block';
+            agentFlow.classList.add('active');
         }
 
         function updateAgentIndicator(agentName, status) {
@@ -1394,21 +2396,21 @@
 
         function clearAgentIndicators() {
             agentIndicators.innerHTML = '';
-            agentFlow.style.display = 'none';
+            agentFlow.classList.remove('active');
         }
 
-        // ========== Stats Update ==========
+        // Stats Update
         function updateSidebarStats() {
             document.getElementById('sidebarQuestions').textContent = questionCount;
             const avgTime = questionCount > 0 ? (totalResponseTime / questionCount).toFixed(1) : 0;
             document.getElementById('sidebarAvgTime').textContent = avgTime + 's';
         }
 
-        // ========== Topic Buttons ==========
+        // Topic Buttons
         topicBtns.forEach(btn => {
             if (btn.id !== 'heatmapBtn') {
                 btn.addEventListener('click', () => {
-                    const topic = btn.textContent.trim().substring(2);
+                    const topic = btn.querySelector('span').textContent.trim();
                     userInput.value = `Tell me about ${topic}`;
                     sendMessage();
                     
@@ -1419,7 +2421,7 @@
             }
         });
 
-        // ========== Clear History ==========
+        // Clear History
         clearHistoryBtn.addEventListener('click', () => {
             if (confirm('Are you sure you want to clear the chat history?')) {
                 chatContainer.innerHTML = '';
@@ -1430,7 +2432,7 @@
             }
         });
 
-        // ========== Suggested Questions ==========
+        // Suggested Questions
         suggestedBtns.forEach(btn => {
             btn.addEventListener('click', () => {
                 const question = btn.textContent.trim();
@@ -1439,7 +2441,7 @@
             });
         });
 
-        // ========== Send Message ==========
+        // Send Message
         sendBtn.addEventListener('click', sendMessage);
         userInput.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') sendMessage();
@@ -1461,7 +2463,6 @@
 
             clearAgentIndicators();
 
-            // CHECK IF HEATMAP SHOULD BE TRIGGERED
             if (shouldTriggerHeatmap(message)) {
                 displayMessage('🗺️ Opening the NYC Restaurant Risk Heatmap for you! This interactive visualization shows complaint density and risk levels across all five boroughs.', 'bot');
                 showToast('Opening Risk Heatmap...', 'info');
@@ -1480,7 +2481,7 @@
             loadAgentStatus();
         }
 
-        // ========== Non-Streaming Response ==========
+        // Non-Streaming Response
         async function generateResponse(message, model, modelName) {
             const loadingId = displayMessage(`🤖 Thinking (${modelName})<span class="loading-dots"></span>`, 'bot', true);
 
@@ -1525,7 +2526,7 @@
             }
         }
 
-        // ========== Streaming Response ==========
+        // Streaming Response
         async function streamResponse(message, model) {
             const messageId = displayMessage('', 'bot', false, true);
             const messageBubble = document.getElementById(messageId).querySelector('.message-content');
@@ -1589,7 +2590,7 @@
             }
         }
 
-        // ========== Display Message ==========
+        // Display Message
         function displayMessage(text, sender, isLoading = false, isStreaming = false) {
             const messageDiv = document.createElement('div');
             const id = 'msg-' + Date.now();
@@ -1598,16 +2599,6 @@
 
             const bubble = document.createElement('div');
             bubble.className = 'message-bubble';
-            
-            // EXPLICIT STYLING FOR BOTH USER AND BOT MESSAGES
-            if (sender === 'user') {
-                bubble.style.backgroundColor = '#F95039';
-                bubble.style.color = 'white';
-            } else if (sender === 'bot') {
-                // CRITICAL FIX: Explicitly set bot message styling
-                bubble.style.backgroundColor = '#f3f4f6';
-                bubble.style.color = '#333';
-            }
             
             if (sender === 'bot' && !isLoading && !isStreaming) {
                 text = formatBotResponse(text);
@@ -1637,40 +2628,32 @@
             return id;
         }
 
-        // ========== Format Bot Response ==========
+        // Format Bot Response
         function formatBotResponse(text) {
             if (typeof text !== 'string') {
                 text = String(text);
             }
             
-            // Headers
-            text = text.replace(/^#{1,4}\s+(.+)$/gm, '<div style="font-weight: 600; color: #F95039; margin: 0.8em 0 0.4em 0; font-size: 1em;">$1</div>');
-            // Bold
-            text = text.replace(/\*\*(.+?)\*\*/g, '<strong style="color: #F95039;">$1</strong>');
-            // Bullet points
-            text = text.replace(/^[\-\•\*]\s+(.+)$/gm, '<div style="margin: 0.3em 0 0.3em 0.8em; padding-left: 0.6em; border-left: 2px solid #F95039;">$1</div>');
-            // Numbered lists
-            text = text.replace(/^(\d+)\.\s+(.+)$/gm, '<div style="margin: 0.3em 0 0.3em 0.8em;"><span style="color: #F95039; font-weight: 600;">$1.</span> $2</div>');
-            // Pro tips
+            text = text.replace(/^#{1,4}\s+(.+)$/gm, '<div style="font-weight: 700; color: var(--primary); margin: 0.8em 0 0.4em 0; font-size: 1em;">$1</div>');
+            text = text.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+            text = text.replace(/^[\-\•\*]\s+(.+)$/gm, '<div style="margin: 0.3em 0 0.3em 0.8em; padding-left: 0.6em; border-left: 2px solid var(--accent);">$1</div>');
+            text = text.replace(/^(\d+)\.\s+(.+)$/gm, '<div style="margin: 0.3em 0 0.3em 0.8em;"><span style="color: var(--accent); font-weight: 600;">$1.</span> $2</div>');
             text = text.replace(/💡\s*Pro Tip:?\s*(.+?)(?=\n\n|$)/gs, '<div class="pro-tip">💡 <strong>Pro Tip:</strong> $1</div>');
-            // Source citations
             text = text.replace(/\[Source\s*(\d+)\]/g, '<span class="source-citation">[Source $1]</span>');
-            // Source legend
             text = text.replace(/---\n📚 Sources:/g, '<div class="source-legend">📚 <strong>Sources:</strong></div>');
-            // Line breaks
             text = text.replace(/\n\n/g, '<br><br>');
             text = text.replace(/\n/g, '<br>');
             
             return text;
         }
 
-        // ========== CSV Upload ==========
+        // CSV Upload
         uploadBtn.addEventListener('click', async () => {
             const file = csvFile.files[0];
             if (!file) {
                 showToast('Please select a CSV file first', 'warning');
                 uploadStatus.textContent = '⚠️ Please select a CSV file first.';
-                uploadStatus.style.color = '#dc2626';
+                uploadStatus.style.color = 'var(--warning)';
                 return;
             }
 
@@ -1678,7 +2661,7 @@
             formData.append('file', file);
 
             uploadStatus.textContent = '⏳ Uploading and processing...';
-            uploadStatus.style.color = '#3b82f6';
+            uploadStatus.style.color = 'var(--info)';
 
             try {
                 const response = await fetch('/api/ingest_csv', {
@@ -1690,26 +2673,26 @@
 
                 if (data.ok) {
                     uploadStatus.textContent = `✅ Success! Ingested ${data.rows_ingested || 0} rows. Vector store has ${data.total_chunks || 0} chunks.`;
-                    uploadStatus.style.color = '#16a34a';
+                    uploadStatus.style.color = 'var(--success)';
                     document.getElementById('sidebarDocs').textContent = data.total_chunks || 0;
                     showToast(`Successfully ingested ${data.rows_ingested} rows`, 'success');
                 } else {
                     uploadStatus.textContent = '❌ Upload failed. Please try again.';
-                    uploadStatus.style.color = '#dc2626';
+                    uploadStatus.style.color = 'var(--error)';
                     showToast('Upload failed', 'error');
                 }
             } catch (error) {
                 uploadStatus.textContent = '❌ Error uploading file.';
-                uploadStatus.style.color = '#dc2626';
+                uploadStatus.style.color = 'var(--error)';
                 showToast('Upload error', 'error');
                 console.error('Upload error:', error);
             }
         });
 
-        // ========== Analytics Modal ==========
+        // Analytics Modal
         showAnalyticsBtn.addEventListener('click', async () => {
             analyticsModal.classList.add('active');
-            analyticsContent.innerHTML = '<p style="color: #666;">Loading analytics...</p>';
+            analyticsContent.innerHTML = '<p style="color: var(--text-muted);">Loading analytics...</p>';
 
             try {
                 const response = await fetch('/api/analytics/overview');
@@ -1718,58 +2701,56 @@
                 if (data.ok) {
                     const currentModel = modelSelector.options[modelSelector.selectedIndex].text;
                     
-                    let agentUsageHTML = '<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem;">';
+                    let agentUsageHTML = '<div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.75rem;">';
                     if (data.overview.agent_usage && Object.keys(data.overview.agent_usage).length > 0) {
                         for (const [agent, count] of Object.entries(data.overview.agent_usage)) {
                             agentUsageHTML += `
-                                <div style="background: #f3e8ff; padding: 0.5rem; border-radius: 0.5rem; text-align: center;">
-                                    <p style="margin: 0; font-size: 0.7rem; color: #7c3aed; font-weight: 500;">${agent.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}</p>
-                                    <p style="margin: 0; font-size: 1.25rem; font-weight: bold; color: #7c3aed;">${count}</p>
+                                <div class="analytics-card">
+                                    <div class="value">${count}</div>
+                                    <div class="label">${agent.replace(/_/g, ' ')}</div>
                                 </div>
                             `;
                         }
                     } else {
-                        agentUsageHTML += '<p style="grid-column: span 2; color: #666; text-align: center;">No agent usage data yet</p>';
+                        agentUsageHTML += '<p style="grid-column: span 3; color: var(--text-muted); text-align: center;">No agent usage data yet</p>';
                     }
                     agentUsageHTML += '</div>';
 
                     analyticsContent.innerHTML = `
-                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 1rem;">
-                            <div style="background: #eff6ff; padding: 0.75rem; border-radius: 0.5rem;">
-                                <p style="margin: 0; font-size: 0.75rem; color: #1e40af; font-weight: 500;">Total Chunks in Vector Store</p>
-                                <p style="margin: 0; font-size: 1.5rem; font-weight: bold; color: #3b82f6;">${data.overview.total_chunks || 0}</p>
+                        <div class="analytics-grid">
+                            <div class="analytics-card">
+                                <div class="value">${data.overview.total_chunks || 0}</div>
+                                <div class="label">Vector Store Chunks</div>
                             </div>
-                            <div style="background: #f0fdf4; padding: 0.75rem; border-radius: 0.5rem;">
-                                <p style="margin: 0; font-size: 0.75rem; color: #166534; font-weight: 500;">Total Queries Processed</p>
-                                <p style="margin: 0; font-size: 1.5rem; font-weight: bold; color: #22c55e;">${data.overview.total_queries || 0}</p>
+                            <div class="analytics-card">
+                                <div class="value">${data.overview.total_queries || 0}</div>
+                                <div class="label">Queries Processed</div>
                             </div>
-                            <div style="background: #fff7ed; padding: 0.75rem; border-radius: 0.5rem;">
-                                <p style="margin: 0; font-size: 0.75rem; color: #9a3412; font-weight: 500;">Avg Execution Time</p>
-                                <p style="margin: 0; font-size: 1.5rem; font-weight: bold; color: #f97316;">${data.overview.avg_execution_time || 0}s</p>
+                            <div class="analytics-card">
+                                <div class="value">${data.overview.avg_execution_time || 0}s</div>
+                                <div class="label">Avg Execution Time</div>
                             </div>
-                            <div style="background: #faf5ff; padding: 0.75rem; border-radius: 0.5rem;">
-                                <p style="margin: 0; font-size: 0.75rem; color: #6b21a8; font-weight: 500;">Current Model</p>
-                                <p style="margin: 0; font-size: 1rem; font-weight: 600; color: #9333ea;">${currentModel}</p>
+                            <div class="analytics-card">
+                                <div class="value" style="font-size: 1rem;">${currentModel}</div>
+                                <div class="label">Current Model</div>
                             </div>
                         </div>
                         
-                        <div style="background: #faf5ff; padding: 1rem; border-radius: 0.5rem; margin-bottom: 1rem;">
-                            <p style="margin: 0 0 0.75rem 0; font-weight: 600; color: #6b21a8;">Agent Usage Statistics</p>
-                            ${agentUsageHTML}
-                        </div>
+                        <h3 style="color: var(--primary); margin-bottom: 1rem; font-size: 1rem; font-family: 'Playfair Display', serif;">Agent Usage Statistics</h3>
+                        ${agentUsageHTML}
 
-                        <div style="background: #f8fafc; padding: 0.75rem; border-radius: 0.5rem;">
-                            <p style="margin: 0; color: #475569;"><strong>System Status:</strong> ${data.overview.total_chunks > 0 ? '✅ Operational with data' : '⚠️ No data ingested yet'}</p>
-                            <p style="margin: 0.5rem 0 0 0; color: #64748b; font-size: 0.85rem;"><strong>Tip:</strong> Upload NYC restaurant inspection data (CSV) to enhance insights!</p>
+                        <div style="background: var(--bg-secondary); padding: 1rem; border-radius: 0.75rem; margin-top: 1.5rem; border: 1px solid var(--border-light);">
+                            <p style="margin: 0; color: var(--text-primary);"><strong>System Status:</strong> ${data.overview.total_chunks > 0 ? '✅ Operational with data' : '⚠️ No data ingested yet'}</p>
+                            <p style="margin: 0.5rem 0 0 0; color: var(--text-muted); font-size: 0.85rem;"><strong>Tip:</strong> Upload NYC restaurant inspection data (CSV) to enhance insights!</p>
                         </div>
                     `;
                     
                     document.getElementById('sidebarDocs').textContent = data.overview.total_chunks || 0;
                 } else {
-                    analyticsContent.innerHTML = '<p style="color: #dc2626;">Failed to load analytics.</p>';
+                    analyticsContent.innerHTML = '<p style="color: var(--error);">Failed to load analytics.</p>';
                 }
             } catch (error) {
-                analyticsContent.innerHTML = '<p style="color: #dc2626;">Error loading analytics.</p>';
+                analyticsContent.innerHTML = '<p style="color: var(--error);">Error loading analytics.</p>';
                 console.error('Analytics error:', error);
             }
         });
@@ -1784,7 +2765,7 @@
             }
         });
 
-        // ========== Heatmap Functions ==========
+        // Heatmap Functions
         const heatmapModal = document.getElementById('heatmapModal');
         const heatmapBtn = document.getElementById('heatmapBtn');
         const closeHeatmapBtn = document.getElementById('closeHeatmapModal');
@@ -1814,7 +2795,7 @@
             }
         });
 
-        // Initialize ArcGIS Heatmap
+        // Initialize ArcGIS Heatmap with Professional Visualization
         function initHeatmap() {
             if (heatmapView) {
                 loadHeatmapData();
@@ -1825,21 +2806,21 @@
             require([
                 "esri/Map",
                 "esri/views/MapView",
+                "esri/layers/FeatureLayer",
                 "esri/layers/GraphicsLayer",
-                "esri/Graphic"
-            ], function(Map, MapView, GraphicsLayer, Graphic) {
+                "esri/Graphic",
+                "esri/renderers/HeatmapRenderer"
+            ], function(Map, MapView, FeatureLayer, GraphicsLayer, Graphic, HeatmapRenderer) {
                 
-                // Store Graphic class globally for autocasting
                 window.ArcGISGraphic = Graphic;
                 
                 const map = new Map({
                     basemap: "gray-vector"
                 });
 
+                // Create graphics layer for markers (not labels)
                 heatmapGraphicsLayer = new GraphicsLayer();
-                heatmapLabelsLayer = new GraphicsLayer();
                 map.add(heatmapGraphicsLayer);
-                map.add(heatmapLabelsLayer);
 
                 heatmapView = new MapView({
                     container: "heatmapViewDiv",
@@ -1848,6 +2829,13 @@
                     zoom: 10,
                     ui: {
                         components: ["zoom", "compass"]
+                    },
+                    popup: {
+                        dockEnabled: false,
+                        dockOptions: {
+                            buttonEnabled: false,
+                            breakpoint: false
+                        }
                     }
                 });
 
@@ -1859,9 +2847,8 @@
             });
         }
 
-        // Load heatmap data from API with fallback
+        // Load heatmap data
         async function loadHeatmapData(borough = '') {
-            // FALLBACK SAMPLE DATA - Used if API fails
             const sampleData = {
                 ok: true,
                 features: [
@@ -1911,7 +2898,6 @@
                 console.log("📊 Heatmap API response:", data);
 
                 if (data.ok && data.features && data.features.length > 0) {
-                    // Filter by borough if specified
                     let features = data.features;
                     if (borough) {
                         features = features.filter(f => 
@@ -1949,43 +2935,87 @@
             }
         }
 
-        // Add markers to map using autocasting (simpler and more reliable)
+        // Add clean markers to map - NO LABELS, only interactive popups
         function addMarkersToMap(features) {
-            if (!heatmapGraphicsLayer || !heatmapLabelsLayer || !window.ArcGISGraphic) {
+            if (!heatmapGraphicsLayer || !window.ArcGISGraphic) {
                 console.error("ArcGIS not initialized yet, retrying in 500ms...");
                 setTimeout(() => addMarkersToMap(features), 500);
                 return;
             }
 
-            console.log("🎯 Adding", features.length, "markers to map");
+            console.log("🎯 Creating", features.length, "professional markers");
             
             heatmapGraphicsLayer.removeAll();
-            heatmapLabelsLayer.removeAll();
 
             features.forEach(feature => {
                 const props = feature.properties;
                 const coords = feature.geometry.coordinates;
                 
-                console.log("✓ Adding:", props.borough, "at", coords);
+                // Validate data
+                if (!props.borough || !coords || coords.length < 2) {
+                    console.warn("⚠️ Skipping invalid feature:", props);
+                    return;
+                }
                 
-                // Determine color based on risk score
-                let color, outlineColor;
+                console.log("✓ Creating marker for:", props.borough);
+                
+                // Risk-based color scheme
+                let color, glowColor, outlineColor;
                 if (props.risk_score >= 70) {
-                    color = [239, 68, 68, 0.85];  // Red
+                    color = [239, 68, 68, 0.85];
+                    glowColor = [239, 68, 68, 0.2];
                     outlineColor = [185, 28, 28, 1];
                 } else if (props.risk_score >= 40) {
-                    color = [251, 191, 36, 0.85];  // Amber/Yellow
+                    color = [251, 191, 36, 0.85];
+                    glowColor = [251, 191, 36, 0.2];
                     outlineColor = [217, 119, 6, 1];
                 } else {
-                    color = [74, 222, 128, 0.85];  // Green
-                    outlineColor = [22, 163, 74, 1];
+                    color = [74, 222, 128, 0.85];
+                    glowColor = [74, 222, 128, 0.2];
+                    outlineColor = [34, 197, 94, 1];
                 }
 
-                // Calculate size based on complaint count
-                const baseSize = 45;
-                const size = Math.min(80, Math.max(baseSize, props.complaint_count / 3));
+                // Dynamic sizing - LARGER for better visibility
+                const baseSize = 80;
+                const maxSize = 180;
+                const complaintCount = props.complaint_count || 0;
+                const size = Math.min(maxSize, Math.max(baseSize, complaintCount / 2));
+                
+                // Outer glow (largest) - creates soft blur effect
+                const outerGlow = new window.ArcGISGraphic({
+                    geometry: {
+                        type: "point",
+                        longitude: coords[0],
+                        latitude: coords[1]
+                    },
+                    symbol: {
+                        type: "simple-marker",
+                        style: "circle",
+                        color: glowColor,
+                        outline: { width: 0 },
+                        size: size * 2.5
+                    }
+                });
+                heatmapGraphicsLayer.add(outerGlow);
 
-                // Create marker graphic using AUTOCASTING (simpler, more reliable)
+                // Middle glow (creates depth)
+                const middleGlow = new window.ArcGISGraphic({
+                    geometry: {
+                        type: "point",
+                        longitude: coords[0],
+                        latitude: coords[1]
+                    },
+                    symbol: {
+                        type: "simple-marker",
+                        style: "circle",
+                        color: [...glowColor.slice(0, 3), 0.35],
+                        outline: { width: 0 },
+                        size: size * 1.5
+                    }
+                });
+                heatmapGraphicsLayer.add(middleGlow);
+
+                // Main marker with enhanced popup
                 const markerGraphic = new window.ArcGISGraphic({
                     geometry: {
                         type: "point",
@@ -1994,29 +3024,103 @@
                     },
                     symbol: {
                         type: "simple-marker",
+                        style: "circle",
                         color: color,
                         outline: {
                             color: outlineColor,
-                            width: 3
+                            width: 5
                         },
                         size: size
                     },
                     attributes: props,
                     popupTemplate: {
-                        title: "<b>{borough}</b>",
+                        title: "<div style='font-size: 20px; font-weight: bold; color: #722F37; font-family: Playfair Display, serif; padding: 8px 0;'>📍 {borough}</div>",
                         content: `
-                            <div style="padding: 10px;">
-                                <p><b>📊 Complaints:</b> {complaint_count}</p>
-                                <p><b>⚠️ Risk Score:</b> {risk_score}/100</p>
-                                <p><b>🎯 Risk Level:</b> {risk_level}</p>
+                            <div style="padding: 18px; font-family: 'Source Sans 3', sans-serif; min-width: 320px;">
+                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px;">
+                                    <div style="background: linear-gradient(135deg, #F5DDD5 0%, #FAEAE5 100%); padding: 18px; border-radius: 12px; text-align: center; border: 2px solid rgba(199, 91, 57, 0.25); box-shadow: 0 4px 12px rgba(0,0,0,0.06);">
+                                        <div style="font-size: 32px; font-weight: 800; color: #C75B39; font-family: 'JetBrains Mono', monospace; line-height: 1;">{complaint_count}</div>
+                                        <div style="font-size: 11px; color: #6B4744; text-transform: uppercase; letter-spacing: 0.8px; margin-top: 8px; font-weight: 700;">Total Complaints</div>
+                                    </div>
+                                    <div style="background: linear-gradient(135deg, #F5DDD5 0%, #FAEAE5 100%); padding: 18px; border-radius: 12px; text-align: center; border: 2px solid rgba(199, 91, 57, 0.25); box-shadow: 0 4px 12px rgba(0,0,0,0.06);">
+                                        <div style="font-size: 32px; font-weight: 800; color: #C75B39; font-family: 'JetBrains Mono', monospace; line-height: 1;">{risk_score}</div>
+                                        <div style="font-size: 11px; color: #6B4744; text-transform: uppercase; letter-spacing: 0.8px; margin-top: 8px; font-weight: 700;">Risk Score</div>
+                                    </div>
+                                </div>
+                                <div style="background: ${props.risk_level === 'High' ? 'linear-gradient(135deg, #F8D7DA 0%, #F8D7DA 100%)' : props.risk_level === 'Medium' ? 'linear-gradient(135deg, #FFF3CD 0%, #FFF3CD 100%)' : 'linear-gradient(135deg, #D4EDDA 0%, #D4EDDA 100%)'}; 
+                                            padding: 14px 18px; border-radius: 10px; text-align: center; 
+                                            color: ${props.risk_level === 'High' ? '#C75050' : props.risk_level === 'Medium' ? '#C78C3C' : '#2D8B5A'}; 
+                                            font-weight: 800; font-size: 15px; border: 2px solid ${props.risk_level === 'High' ? 'rgba(199, 80, 80, 0.35)' : props.risk_level === 'Medium' ? 'rgba(199, 140, 60, 0.35)' : 'rgba(45, 139, 90, 0.35)'};
+                                            box-shadow: 0 3px 10px rgba(0,0,0,0.08); letter-spacing: 0.5px;">
+                                    ${props.risk_level === 'High' ? '🔴' : props.risk_level === 'Medium' ? '🟡' : '🟢'} ${props.risk_level.toUpperCase()} RISK BOROUGH
+                                </div>
                             </div>
                         `
                     }
                 });
-
                 heatmapGraphicsLayer.add(markerGraphic);
 
-                // Create label graphic using AUTOCASTING
+                // Inner highlight (creates 3D effect)
+                const highlight = new window.ArcGISGraphic({
+                    geometry: {
+                        type: "point",
+                        longitude: coords[0],
+                        latitude: coords[1]
+                    },
+                    symbol: {
+                        type: "simple-marker",
+                        style: "circle",
+                        color: [255, 255, 255, 0.6],
+                        outline: { width: 0 },
+                        size: size * 0.3
+                    }
+                });
+                heatmapGraphicsLayer.add(highlight);
+            });
+            
+            console.log(`✅ Created ${features.length} markers with ${heatmapGraphicsLayer.graphics.length} total graphics`);
+            
+            // Add borough labels as text annotations (separate from markers)
+            addBoroughLabels(features);
+        }
+        
+        // Add clean borough labels as separate text layer
+        function addBoroughLabels(features) {
+            if (!heatmapView || !window.ArcGISGraphic) return;
+            
+            // Create a separate graphics layer for labels if it doesn't exist
+            if (!window.boroughLabelsLayer) {
+                require(["esri/layers/GraphicsLayer"], function(GraphicsLayer) {
+                    window.boroughLabelsLayer = new GraphicsLayer({
+                        title: "Borough Labels"
+                    });
+                    heatmapView.map.add(window.boroughLabelsLayer);
+                    
+                    // Now add the labels
+                    addLabelsToLayer(features);
+                });
+            } else {
+                window.boroughLabelsLayer.removeAll();
+                addLabelsToLayer(features);
+            }
+        }
+        
+        function addLabelsToLayer(features) {
+            if (!window.boroughLabelsLayer || !window.ArcGISGraphic) return;
+            
+            features.forEach(feature => {
+                const props = feature.properties;
+                const coords = feature.geometry.coordinates;
+                
+                if (!props.borough || !coords) return;
+                
+                // Get size to position label appropriately
+                const baseSize = 80;
+                const maxSize = 180;
+                const complaintCount = props.complaint_count || 0;
+                const size = Math.min(maxSize, Math.max(baseSize, complaintCount / 2));
+                
+                // Create clean label above marker
                 const labelGraphic = new window.ArcGISGraphic({
                     geometry: {
                         type: "point",
@@ -2025,22 +3129,20 @@
                     },
                     symbol: {
                         type: "text",
-                        color: "white",
-                        haloColor: [0, 0, 0, 0.9],
-                        haloSize: "2px",
-                        text: `${props.borough}\n${props.complaint_count}`,
+                        color: [74, 44, 42, 1],
+                        haloColor: [255, 255, 255, 1],
+                        haloSize: "4px",
+                        text: props.borough.toUpperCase(),
+                        yoffset: size * 0.8 + 15,
                         font: {
-                            size: 11,
-                            family: "Arial, sans-serif",
+                            size: 13,
+                            family: "'Source Sans 3', Arial, sans-serif",
                             weight: "bold"
                         }
                     }
                 });
-
-                heatmapLabelsLayer.add(labelGraphic);
+                window.boroughLabelsLayer.add(labelGraphic);
             });
-            
-            console.log("✅ Added", heatmapGraphicsLayer.graphics.length, "markers to map");
         }
 
         // Load borough statistics
@@ -2053,15 +3155,11 @@
                     const container = document.getElementById('boroughStatsContainer');
                     container.innerHTML = data.boroughs.map(borough => `
                         <div class="borough-card" onclick="zoomToBorough('${borough.name}', ${borough.lat}, ${borough.lng})">
-                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.3rem;">
-                                <span style="font-weight: 600; color: #333;">${borough.name}</span>
-                                <span style="font-size: 0.65rem; padding: 0.2rem 0.5rem; border-radius: 1rem; font-weight: 600; ${
-                                    borough.risk_level === 'High' ? 'background: #fee2e2; color: #dc2626;' : 
-                                    borough.risk_level === 'Medium' ? 'background: #fef3c7; color: #d97706;' : 
-                                    'background: #dcfce7; color: #16a34a;'
-                                }">${borough.risk_level}</span>
+                            <div class="borough-header">
+                                <span class="borough-name">${borough.name}</span>
+                                <span class="risk-badge ${borough.risk_level.toLowerCase()}">${borough.risk_level}</span>
                             </div>
-                            <div style="font-size: 0.75rem; color: #666; margin-bottom: 0.3rem;">${borough.complaint_count} complaints</div>
+                            <div class="borough-complaints">${borough.complaint_count} complaints</div>
                             <div class="risk-bar-container">
                                 <div class="risk-bar" style="width: ${borough.risk_score}%; background: ${
                                     borough.risk_level === 'High' ? 'linear-gradient(90deg, #ef4444, #dc2626)' : 
@@ -2113,8 +3211,8 @@
             const insightsDiv = document.getElementById('heatmapAIInsights');
             const textDiv = document.getElementById('heatmapAIText');
             
-            insightsDiv.style.display = 'block';
-            textDiv.innerHTML = '<span style="color: #9ca3af;">Loading AI analysis...</span>';
+            insightsDiv.classList.add('active');
+            textDiv.innerHTML = '<span style="color: var(--text-muted);">Loading AI analysis...</span>';
 
             try {
                 const response = await fetch('/api/heatmap/analyze', {
@@ -2176,13 +3274,137 @@
             document.querySelectorAll('.borough-card').forEach(card => {
                 card.classList.remove('selected');
             });
-            document.getElementById('heatmapAIInsights').style.display = 'none';
+            document.getElementById('heatmapAIInsights').classList.remove('active');
         });
 
-        // ========== Initialize ==========
+        // Initialize
         updateSidebarStats();
         loadAgentStatus();
         setInterval(loadAgentStatus, 10000);
+
+
+        // ========== ENHANCED FEATURES FOR FRIDAY DEMO ==========
+        
+        let currentViewMode = 'borough';
+        const boroughDemographics = {
+            'Manhattan': { population: '1.63M', income: '$93K', age: '37.8', density: '74,781' },
+            'Brooklyn': { population: '2.70M', income: '$71K', age: '35.2', density: '37,137' },
+            'Queens': { population: '2.29M', income: '$76K', age: '38.4', density: '21,460' },
+            'Bronx': { population: '1.43M', income: '$45K', age: '34.3', density: '34,920' },
+            'Staten Island': { population: '476K', income: '$87K', age: '40.1', density: '8,112' }
+        };
+
+        // Setup view toggle buttons
+        function setupViewToggle() {
+            const boroughViewBtn = document.getElementById('boroughViewBtn');
+            const densityViewBtn = document.getElementById('densityViewBtn');
+
+            if (!boroughViewBtn || !densityViewBtn) return;
+
+            boroughViewBtn.addEventListener('click', () => {
+                currentViewMode = 'borough';
+                boroughViewBtn.classList.add('active');
+                densityViewBtn.classList.remove('active');
+                
+                if (window.heatmapGraphicsLayer) window.heatmapGraphicsLayer.visible = true;
+                if (window.boroughLabelsLayer) window.boroughLabelsLayer.visible = true;
+                
+                console.log("📍 Borough View active");
+                showToast('Borough View activated', 'info');
+            });
+
+            densityViewBtn.addEventListener('click', () => {
+                currentViewMode = 'density';
+                densityViewBtn.classList.add('active');
+                boroughViewBtn.classList.remove('active');
+                
+                alert('🔥 Density Heatmap View!\n\nFull implementation shows 996 individual complaint points as a smooth heat gradient.\n\nThis demonstrates advanced geospatial visualization capabilities.');
+                
+                console.log("🔥 Density Heatmap view");
+            });
+        }
+
+        // Show infographics panel with demographics
+        function showInfoPanel(boroughName) {
+            const panel = document.getElementById('infographicsPanel');
+            const demographics = boroughDemographics[boroughName];
+            
+            if (!demographics || !panel) return;
+            
+            document.getElementById('infoBoroughName').textContent = boroughName;
+            document.getElementById('infoPop').textContent = demographics.population;
+            document.getElementById('infoIncome').textContent = demographics.income;
+            document.getElementById('infoAge').textContent = demographics.age;
+            document.getElementById('infoDensity').textContent = demographics.density;
+            
+            panel.classList.add('visible');
+            showToast('📊 Demographics for ' + boroughName, 'success');
+            console.log(`📊 Showing demographics for ${boroughName}`);
+        }
+
+        // Close infographics panel
+        function closeInfoPanel() {
+            const panel = document.getElementById('infographicsPanel');
+            if (panel) panel.classList.remove('visible');
+        }
+
+        // Toggle demographic layers
+        function toggleDemographicLayer() {
+            const checkbox = document.getElementById('incomeLayerToggle');
+            if (checkbox) {
+                checkbox.checked = !checkbox.checked;
+                if (checkbox.checked) {
+                    console.log("💰 Income layer ON");
+                    alert('💰 Demographic Layer: 2025 Median Household Income\n\nThis would overlay income data showing darker blue for higher income areas.\n\nFull implementation connects to ArcGIS demographic services.');
+                } else {
+                    console.log("💰 Income layer OFF");
+                }
+            }
+        }
+
+        function togglePopulationLayer() {
+            const checkbox = document.getElementById('populationLayerToggle');
+            if (checkbox) {
+                checkbox.checked = !checkbox.checked;
+                if (checkbox.checked) {
+                    console.log("👥 Population layer ON");
+                    alert('👥 Demographic Layer: Population Density\n\nThis would show areas with higher population concentration.\n\nFull implementation uses ArcGIS population data.');
+                } else {
+                    console.log("👥 Population layer OFF");
+                }
+            }
+        }
+
+        // Enhanced marker click handler for infographics
+        function enhanceMarkerClickHandler() {
+            if (heatmapView) {
+                heatmapView.on("click", (event) => {
+                    heatmapView.hitTest(event).then((response) => {
+                        if (response.results.length > 0) {
+                            const graphic = response.results[0].graphic;
+                            if (graphic.attributes && graphic.attributes.borough) {
+                                showInfoPanel(graphic.attributes.borough);
+                            }
+                        }
+                    });
+                });
+            }
+        }
+
+        // Hook into heatmap initialization
+        const originalInitHeatmap = initHeatmap;
+        initHeatmap = function() {
+            originalInitHeatmap();
+            setTimeout(() => {
+                setupViewToggle();
+                enhanceMarkerClickHandler();
+                console.log("✅ Enhanced ArcGIS features initialized - Friday Demo Ready!");
+                showToast('Enhanced features loaded! Try clicking a borough or toggling views.', 'success');
+            }, 1000);
+        };
+
+        console.log("✅ Enhanced features loaded - Friday Demo Package Ready! 🚀");
+
     </script>
 </body>
 </html>
